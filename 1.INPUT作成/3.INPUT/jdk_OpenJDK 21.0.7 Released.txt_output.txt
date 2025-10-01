@@ -1,0 +1,1440 @@
+Title: [JDK-8227529] With malformed --app-image the error messages are awful
+Priority: P4
+Type: Bug
+Component: tools
+Description: jpackage --app-image /tmp does not provide a helpful message with a malformed app-image.
+Example 1:
+jpackage --app-image /tmp --package-type deb  --output x
+Output:
+Bundler DEB Installer skipped because of a configuration problem: java.lang.NullPointerException.
+Example 2:
+jpackage --app-image /tmp
+Output:
+Error: Option [--app-image] is not valid with package-type [null].
+Example 3:
+mkdir /tmp/x
+touch /tmp/x/y
+jpackage --app-image /tmp/x --package-type deb  --output x --name xxxx
+Output 3:
+java.nio.file.NoSuchFileException: /tmp/jdk.jpackage13842042862336393495/images/linux-deb.image/xxxx-1.0/opt/xxxx/bin/xxxx.png
+Example 4:  (Even with a well formed app image) if the --name is missing the message is poor.
+jpackage -o out --app-image out/skara --package-type deb
+Output 4:
+Bundler DEB Installer skipped because of a configuration problem: java.lang.NullPointerException.
+
+-----
+Title: [JDK-8295159] DSO created with -ffast-math breaks Java floating-point arithmetic
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: A bug in GCC causes shared libraries linked with -ffast-math to disable denormal arithmetic. This breaks Java's floating-point semantics.
+The bug is https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55522
+One solution is to save and restore the floating-point control word around System.loadLibrary(). This isn't perfect, because some shared library might load another shared library at runtime, but it's a lot better than what we do now.
+
+-----
+Title: [JDK-8302111] Serialization considerations
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: While addressing JDK-8286503, it was noted that there may be other S11N issues which are more of a functional/data consistency nature.
+Essentially, deserialization is a form of object construction and should enforce the same data validation and consistency checks as enforced by the constructor(s). Thus, additional checks may be needed when deserializing the objects to ensure that values failing the constructor check are rejected during deserialization as well.
+OS: generic
+
+-----
+Title: [JDK-8304701] Request with timeout aborts later in-flight request on HTTP/1.1 cxn
+Priority: P3
+Type: Bug
+Component: core-libs
+Description: ADDITIONAL SYSTEM INFORMATION :
+macOS 12.6.3 (21G419)
+openjdk version "20" 2023-03-21
+OpenJDK Runtime Environment (build 20+36-2344)
+OpenJDK 64-Bit Server VM (build 20+36-2344, mixed mode, sharing)
+A DESCRIPTION OF THE PROBLEM :
+This was originally encountered and reported as https://github.com/SeleniumHQ/selenium/issues/11798, until it was determined to be a JDK issue.
+When an java.net.http.HttpRequest is sent with a specific timeout over a persistent HTTP/1.1 connection, the ResponseTimerEvent appears to be unconditionally handle()'d once its deadline elapses (regardless of whether
+the request has completed), forcing the connection to be promptly and unnecessarily closed.  If there is another request in-flight on the connection at this moment, then it will fail with a "java.io.IOException: connection closed locally" error.
+This issue is readily reproducible by sending requests in a tight loop to a server with non-trivial latency or that returns a large response having a non-trivial transfer time.  This issue does appear to arise with HTTP/2 connections or if the connection is idle at the moment the timer elapses.
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+javac JavaExample.java && java JavaExample
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+The process should run to completion with a few successful requests over ~15 seconds.
+ACTUAL -
+The process sends a few successful requests, but at ~10 seconds throws an exception like:
+```
+Exception in thread "main" java.io.IOException: fixed content-length: 28490775, bytes received: 17112264
+at java.net.http/jdk.internal.net.http.HttpClientImpl.send(HttpClientImpl.java:586)
+at java.net.http/jdk.internal.net.http.HttpClientFacade.send(HttpClientFacade.java:123)
+at example.JavaExample.main(JavaExample.java:28)
+Caused by: java.io.IOException: fixed content-length: 28490775, bytes received: 17112264
+at java.net.http/jdk.internal.net.http.common.Utils.wrapWithExtraDetail(Utils.java:351)
+at java.net.http/jdk.internal.net.http.Http1Response$BodyReader.onReadError(Http1Response.java:760)
+at java.net.http/jdk.internal.net.http.Http1AsyncReceiver.checkForErrors(Http1AsyncReceiver.java:302)
+at java.net.http/jdk.internal.net.http.Http1AsyncReceiver.flush(Http1AsyncReceiver.java:268)
+at java.net.http/jdk.internal.net.http.common.SequentialScheduler$LockingRestartableTask.run(SequentialScheduler.java:205)
+at java.net.http/jdk.internal.net.http.common.SequentialScheduler$CompleteRestartableTask.run(SequentialScheduler.java:149)
+at java.net.http/jdk.internal.net.http.common.SequentialScheduler$SchedulableTask.run(SequentialScheduler.java:230)
+at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+at java.base/java.lang.Thread.run(Thread.java:833)
+Caused by: java.io.IOException: connection closed locally
+at java.net.http/jdk.internal.net.http.SocketTube.signalClosed(SocketTube.java:159)
+at java.net.http/jdk.internal.net.http.PlainHttpConnection.close(PlainHttpConnection.java:372)
+at java.net.http/jdk.internal.net.http.AsyncSSLConnection.close(AsyncSSLConnection.java:111)
+at java.net.http/jdk.internal.net.http.Http1Exchange.cancelImpl(Http1Exchange.java:492)
+at java.net.http/jdk.internal.net.http.Http1Exchange.cancel(Http1Exchange.java:427)
+at java.net.http/jdk.internal.net.http.Exchange.cancel(Exchange.java:238)
+at java.net.http/jdk.internal.net.http.MultiExchange.cancel(MultiExchange.java:260)
+at java.net.http/jdk.internal.net.http.ResponseTimerEvent.handle(ResponseTimerEvent.java:71)
+at java.net.http/jdk.internal.net.http.HttpClientImpl.purgeTimeoutsAndReturnNextDeadline(HttpClientImpl.java:1270)
+at java.net.http/jdk.internal.net.http.HttpClientImpl$SelectorManager.run(HttpClientImpl.java:899)
+```
+---------- BEGIN SOURCE ----------
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.time.Instant;
+import static java.net.http.HttpClient.Redirect.ALWAYS;
+import static java.net.http.HttpClient.Version.HTTP_1_1;
+public class JavaExample {
+public static void main(String[] args) throws Exception {
+int timeoutSeconds = 10;
+HttpClient client = HttpClient.newBuilder()
+.followRedirects(ALWAYS)
+.build();
+for (Instant start = Instant.now(), now = start; now.isBefore(start.plusSeconds(timeoutSeconds * 3 / 2)); now = Instant.now()) {
+HttpRequest request = HttpRequest.newBuilder().uri(URI.create("https://github.com/SeleniumHQ/selenium/releases/download/selenium-4.8.0/selenium-java-4.8.1.zip"))
+.GET()
+.version(HTTP_1_1)
+.timeout(Duration.ofSeconds(timeoutSeconds))
+.build();
+HttpResponse response = client.send(request, HttpResponse.BodyHandlers.discarding());
+System.out.println(now + " - " + response.headers().firstValue("date"));
+}
+}
+}
+---------- END SOURCE ----------
+CUSTOMER SUBMITTED WORKAROUND :
+Use HTTP/2 if available
+Add "Connection: close" header to request if possible (requires jdk.httpclient.allowRestrictedHeaders customization)
+Avoid using request timeouts if feasible
+FREQUENCY : often
+OS: generic
+
+-----
+Title: [JDK-8311546] Certificate name constraints improperly validated with leading period
+Priority: P3
+Type: Bug
+Component: security-libs
+Description: A DESCRIPTION OF THE PROBLEM :
+When a CA certificate contains a name constraint that begins with a period, `.`, an end entity certificate will be improperly rejected with `java.security.cert.CertPathValidatorException: name constraints check failed`.
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+Create a CA certificate with `nameConstraints = critical,permitted;DNS:.example.com`
+Sign a certificate for `demo.example.com` with the CA
+Load CA certificate into keystore / as a TrustAnchor directly
+Attempt to validate end entity certificate
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+Certificate validates successfully
+ACTUAL -
+`java.security.cert.CertPathValidatorException: name constraints check failed` is thrown
+---------- BEGIN SOURCE ----------
+See attached zip file.
+---------- END SOURCE ----------
+FREQUENCY : always
+OS: generic
+
+-----
+Title: [JDK-8315825] Open some swing tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Opening some closed swing tests
+test/jdk/javax/swing/JComponent/bug4765272.java
+test/jdk/javax/swing/JComponent/bug4979794.java
+test/jdk/javax/swing/JPanel/bug4907772.java
+test/jdk/javax/swing/RootPaneChecking/RootPaneChecking.java
+OS: generic
+
+-----
+Title: [JDK-8315882] Open some swing tests 2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Opening some closed swing tests
+OS: generic
+
+-----
+Title: [JDK-8315883] Open source several Swing JToolbar tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert JToolbar applet based tests into main
+
+-----
+Title: [JDK-8315952] Open source several Swing JToolbar JTooltip JTree tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert JToolbar, JTooltip, and JTree applet based tests into main
+
+-----
+Title: [JDK-8316056] Open source several Swing JTree tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert JTree applet based tests into main
+
+-----
+Title: [JDK-8316146] Open some swing tests 4
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Opening some closed swing tests
+OS: generic
+
+-----
+Title: [JDK-8316149] Open source several Swing JTree JViewport KeyboardManager tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert JTree, JViewport, and KeyboardManager applet based tests into main
+
+-----
+Title: [JDK-8316218] Open some swing tests 5
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Opening some closed swing tests
+OS: generic
+
+-----
+Title: [JDK-8316371] Open some swing tests 6
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Opening some closed swing tests
+OS: generic
+
+-----
+Title: [JDK-8316627] JViewport Test headless failure
+Priority: P2
+Type: Bug
+Component: client-libs
+Description: The following test failed in the JDK22 CI:
+javax/swing/JViewport/bug4546474.java
+test result: Failed. Execution failed: `main' threw exception: java.awt.AWTException: headless environment
+
+-----
+Title: [JDK-8317283] jpackage tests run osx-specific checks on windows and linux
+Priority: P4
+Type: Bug
+Component: tools
+Description: In all app image packaging tests output of on all platforms:
+---
+[17:31:52.845] TRACE: assertTrue(): Unexptected value in app image file for
+[17:31:52.860] TRACE: assertTrue(): Unexptected value in app image file for
+---
+These checks were introduced in JDK-8293462. Commit - https://github.com/openjdk/jdk/commit/1e222bccd3807c1be0d1d824e0ff9745751d8375#diff-1c3ecd7a8a4a4125f52b6f7a7d4f83a050b5f3603d074151ab946f877e6c6d9fR845
+The checks are harmless but should be executed only on osx.
+OS: generic
+
+-----
+Title: [JDK-8317808] HTTP/2 stream cancelImpl may leave subscriber registered
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: Some of the ThrowingSubscriberXxx tests (typically those that use a streaming body) have been observed failing intermittently (though rarely) in timeout. The error message printed at the end showed that some HTTP/2 stream subscribers had not been properly deregistered when an exception was thrown in GET_BODY.
+The issue appears to be a race condition between cancelImpl and schedule where the scheduler `sched` may get stopped before the subscriber is exceptionally completed.
+A simple fix is to ensure that cancelImpl will complete the subscriber, if needed.
+
+-----
+Title: [JDK-8317919] pthread_attr_init handle return value and destroy pthread_attr_t object
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: Seems we miss on AIX and Linux the handling of pthread_attr_init  return value and sometimes in special cases destroying the related pthread_attr_t object.
+
+-----
+Title: [JDK-8319233] AArch64: Build failure with clang due to -Wformat-nonliteral warning
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: I tested both {release, fastdebug} on {clang-11, clang-12, clang-14, clang-15} + aarch64 + ubuntu-22.04. The following error log would be generated.
+=== Output from failing command(s) repeated here ===
+* For target hotspot_variant-server_libjvm_objs_os_linux_aarch64.o:
+~/jdk_src/src/hotspot/os_cpu/linux_aarch64/os_linux_aarch64.cpp:266:62: error: format string is not a string literal [-Werror,-Wformat-nonliteral]
+VMError::report_and_die(thread, uc, nullptr, 0, msg, detail_msg, va_dummy);
+^~~~~~~~~~
+1 error generated.
+* All command lines available in ~/build-fastdebug/make-support/failure-logs.
+=== End of repeated output ===
+Note-1: I tested on clang-14+aarch64+macos, and the JDK build can pass.
+Note-2: I think it's a common issue. ppc or riscv should be affected as well. Unfortunately, I didn't have the hardware on hand.
+
+-----
+Title: [JDK-8320691] Timeout handler on Windows takes 2 hours to complete
+Priority: P4
+Type: Bug
+Component: infrastructure
+Description: With latest MSVC toolchain, the timeout handler takes 2 hours to complete. Checking the process.html file, we can find the following text:
+0:048 cdb: Reading initial command '.dump /f core.46216;qd'
+*****************************************************************************
+* .dump /f is not supported on a user mode process.                         *
+*                                                                           *
+* .dump /ma creates a complete memory dump of a user mode process.          *
+*****************************************************************************
+...
+^ Extra character error in '.dump /f core.46216;qd'
+0:048 WARNING: tool timed out: killed process after 3600000 ms
+----------------------------------------
+[2023-11-22 22:36:16] exit code: -2 time: 3599998 ms
+This is repeated twice for two processes, taking up a total of 2 hours.
+We should update the dump command to use /ma instead of /f.
+OS: windows
+
+-----
+Title: [JDK-8322983] Virtual Threads: exclude 2 tests
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: Tests
+runtime/classFileParserBug/TestEmptyBootstrapMethodsAttr.java
+runtime/logging/LoaderConstraintsTest.java
+fail with virtual threads. Shouldn't be executed in this mode.
+
+-----
+Title: [JDK-8324672] Update jdk/java/time/tck/java/time/TCKInstant.java now() to be more robust
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: Test
+jdk/java/time/tck/java/time/TCKInstant.java::now()
+checks that time between 2 invocations is less than 0.1 sec.
+It works usually but might fail with heavy load like batch compilation or STW gc.
+Need to update it to use at least 10 seconds.
+
+-----
+Title: [JDK-8324807] Manual printer tests have no Pass/Fail buttons, instructions close set 2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The following manual printer tests use Sysout framework/classes to display its UI; it was used with applets but the tests are now converted to standalone apps, and there are no Pass or Fail buttons displayed. The instructions quickly appear on the screen and close quickly; in some cases they close after you click Print/OK in a displayed dialog.
+This is not the intended behaviour.
+The list of tests:
+test/jdk/java/awt/print/PrinterJob/Collate2DPrintingTest.java
+test/jdk/java/awt/print/PrinterJob/DrawImage.java
+test/jdk/java/awt/print/PrinterJob/DrawStringMethods.java
+test/jdk/java/awt/print/PrinterJob/InvalidPage.java
+test/jdk/java/awt/print/PrinterJob/NumCopies.java
+test/jdk/java/awt/print/PrinterJob/JobName/PrinterJobName.java
+
+-----
+Title: [JDK-8324838] test_nmt_locationprinting.cpp broken in the gcc windows build
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: test_nmt_locationprinting.cpp defines method test_for_dead_c_heap_block unconditionally, but this method is only ever used on Linux. In the gcc windows build this fires an unused method warning and breaks the gtest suite. Since this is never used outside of Linux, make this method's definition only appear on Linux to avoid polluting code on other platforms
+
+-----
+Title: [JDK-8327460] Compile tests with the same visibility rules as product code
+Priority: P3
+Type: Bug
+Component: infrastructure
+Description: Currently, our symbol visibility handling for tests are sloppy; we only handle it properly on Windows. We need to bring it up to the same levels as product code. This is a prerequisite for JDK-8327045, which in turn is a building block for Hermetic Java.
+
+-----
+Title: [JDK-8327857] Remove applet usage from JColorChooser tests Test4222508
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Removing deprecated applet usage from JColorChooser tests
+open/test/jdk/javax/swing/JColorChooser/Test4222508.java
+
+-----
+Title: [JDK-8327859] Remove applet usage from JColorChooser tests Test4319113
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Removing deprecated applet usage from JColorChooser tests
+open/test/jdk/javax/swing/JColorChooser/Test4319113.java
+
+-----
+Title: [JDK-8328005] Convert java/awt/im/JTextFieldTest.java applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert java/awt/im/JTextFieldTest.java applet test to main using PassFailJFrame
+
+-----
+Title: [JDK-8328121] Remove applet usage from JColorChooser tests Test4759306
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Removing deprecated applet usage from JColorChooser tests
+open/test/jdk/javax/swing/JColorChooser/Test4759306.java
+
+-----
+Title: [JDK-8328130] Remove applet usage from JColorChooser tests Test4759934
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Removing deprecated applet usage from JColorChooser tests
+open/test/jdk/javax/swing/JColorChooser/Test4759934.java
+
+-----
+Title: [JDK-8328185] Convert java/awt/image/MemoryLeakTest/MemoryLeakTest.java applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert java/awt/image/MemoryLeakTest/MemoryLeakTest.java applet test to main using PassFailJFrame
+
+-----
+Title: [JDK-8328227] Remove applet usage from JColorChooser tests Test4887836
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Removing deprecated applet usage from JColorChooser tests
+open/test/jdk/javax/swing/JColorChooser/Test4887836.java
+
+-----
+Title: [JDK-8328368] Convert java/awt/image/multiresolution/MultiDisplayTest/MultiDisplayTest.java applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert java/awt/image/multiresolution/MultiDisplayTest/MultiDisplayTest.java applet test to main using PassFailJFrame
+
+-----
+Title: [JDK-8328370] Convert java/awt/print/Dialog/PrintApplet.java applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert java/awt/print/Dialog/PrintApplet.java applet test to main using PassFailJFrame
+
+-----
+Title: [JDK-8328380] Remove applet usage from JColorChooser tests Test6348456
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Removing deprecated applet usage from JColorChooser tests
+open/test/jdk/javax/swing/JColorChooser/Test6348456.java
+
+-----
+Title: [JDK-8328387] Convert java/awt/Frame/FrameStateTest/FrameStateTest.html applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+
+-----
+Title: [JDK-8328403] Remove applet usage from JColorChooser tests Test6977726
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Removing deprecated applet usage from JColorChooser tests
+open/test/jdk/javax/swing/JColorChooser/Test6977726.java
+
+-----
+Title: [JDK-8328553] Get rid of JApplet in test/jdk/sanity/client/lib/SwingSet2/src/DemoModule.java
+Priority: P3
+Type: Bug
+Component: client-libs
+
+-----
+Title: [JDK-8328558] Convert javax/swing/JCheckBox/8032667/bug8032667.java applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert javax/swing/JCheckBox/8032667/bug8032667.java applet test to main using PassFailJFrame
+
+-----
+Title: [JDK-8328717] Convert javax/swing/JColorChooser/8065098/bug8065098.java applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert javax/swing/JColorChooser/8065098/bug8065098.java applet test to main using PassFailJFrame
+
+-----
+Title: [JDK-8328719] Convert java/awt/print/PageFormat/SetOrient.html applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert java/awt/print/PageFormat/SetOrient.html applet test to main using PassFailJFrame
+
+-----
+Title: [JDK-8328730] Convert java/awt/print/bug8023392/bug8023392.html applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert java/awt/print/bug8023392/bug8023392.html applet test to main using PassFailJFrame
+
+-----
+Title: [JDK-8328753] Open source few Undecorated Frame tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few Undecorated Frame tests.
+OS: generic
+
+-----
+Title: [JDK-8328819] Remove applet usage from JFileChooser tests bug6698013
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Removing deprecated applet usage from JFileChooser tests
+open/test/jdk/javax/swing/JFileChooser/6698013/bug6698013.java
+
+-----
+Title: [JDK-8328827] Convert java/awt/print/PrinterJob/PrinterDialogsModalityTest/PrinterDialogsModalityTest.html applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert java/awt/print/PrinterJob/PrinterDialogsModalityTest/PrinterDialogsModalityTest.html applet test to main using PassFailJFrame
+
+-----
+Title: [JDK-8329320] Simplify awt/print/PageFormat/NullPaper.java test
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The  java/awt/print/PageFormat/NullPaper.java contains lots of unnecessary code which is a leftover from "standard instructions" machinery.
+The test itself is basically two lines of code.
+
+-----
+Title: [JDK-8329322] Convert PageFormat/Orient.java to use PassFailJFrame
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The jdk/java/awt/print/PageFormat/Orient.java test is a manual printer test which uses an old framework which duplicates code in each test.
+Covert Orient.java to use PassFailJFrame.
+
+-----
+Title: [JDK-8329692] Add more details to FrameStateTest.java test instructions
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Frame does not restore to normal after iconfied state in windows 10 & windows 11
+Step to reproduce
+----------------------------------
+1) Run the manual https://github.com/openjdk/jdk/blob/master/test/jdk/java/awt/Frame/FrameStateTest/FrameStateTest.java state
+2) Select Frame state NORMAL & Frame non-resizable checkbox
+3) Click on "Create Frame" button.
+4) "Frame State Test ( Window 2) test frame should be visible
+5) Click on "Iconify & restore" button - "Frame State Test ( Window 2) test frame is iconified and restored
+6) Click on "hide & show" button -  "Frame State Test ( Window 2) test frame" gets hidden and shown
+7) Click on "hide, iconfify and show" button - "Frame State Test ( Window 2) test frame" is
+a) Hidden
+b) Iconified
+c) "Frame State Test ( Window 2) test fram"  is not "showed" . User has to manually click on the iconified and select the "Frame State Test ( Window 2) test frame" to restore the frame.
+If you see the same then the bug is reproduced.
+NOTE: This is not an issue but ambiguity in test instructions. The test instructions will be updated for clarity.
+OS: windows_10
+
+-----
+Title: [JDK-8330702] Update failure handler to don't generate Error message if cores actions are empty
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: The cores section is empty (no exist) on windows and it is not an Error.
+No need to generate Error messages in this case.
+It is about
+' ```ERROR: 'cores' property is empty```'
+Probably it is better to be able to have empty cores and ensure it is not a mistake.
+
+-----
+Title: [JDK-8333360] PrintNullString.java doesn't use float arguments
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The java/awt/print/PrinterJob/PrintNullString.java tests Graphics2D.drawString API which accepts int and float as the coordinates, yet in some cases it passes int where it should be float.
+https://github.com/openjdk/jdk/blob/1e04ee6d57d5fe84e1d202b16e8d13dc13c002ff/test/jdk/java/awt/print/PrinterJob/PrintNullString.java#L148-L154
+// API 3: null & empty drawString(Iterator, int, int);
+try {
+g2d.drawString(nullIterator, 20, 120);
+g2d.drawString("FAILURE: No NPE for null iterator, float", 20, 120);
+} catch (NullPointerException e) {
+g2d.drawString("caught expected NPE for null iterator, int", 20, 120);
+}
+This code has inconsistency: the error message refers to float whereas the call to g2d.drawString uses int and the success message uses int.
+https://github.com/openjdk/jdk/blob/1e04ee6d57d5fe84e1d202b16e8d13dc13c002ff/test/jdk/java/awt/print/PrinterJob/PrintNullString.java#L171-L176
+try {
+g2d.drawString(emptyIterator, 20, 180);
+g2d.drawString("FAILURE: No IAE for empty iterator, float", 20, 180);
+} catch (IllegalArgumentException e) {
+g2d.drawString("caught expected IAE for empty iterator, float", 20, 180);
+}
+This piece of code should use float coordinates but it still uses int.
+
+-----
+Title: [JDK-8333647] C2 SuperWord: some additional PopulateIndex tests
+Priority: P4
+Type: Sub-task
+Component: hotspot
+Description: PopulateIndex is not very well tested by the IR tests.
+
+-----
+Title: [JDK-8334490] Normalize string with locale invariant `toLowerCase()`
+Priority: P4
+Type: Bug
+Component: other-libs
+Description: The test utility class `jdk.test.lib.Platform` uses no-arg `String.toLowerCase()` for normalizing string arguments, which is fragile as it depends on the default locale. They should be replaced with `String.toLowerCase(Locale.ROOT)`
+OS: generic
+
+-----
+Title: [JDK-8335468] [XWayland] JavaFX hangs when calling java.awt.Robot.getPixelColor
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: The tests/system/src/test/java/test/robot/javafx/embed/swing/SwingNodeJDialogTest.java test timeouts after implementing the ScreenCast screen capture for JavaFX(JDK-8326712), this requires a fix on OpenJDK side.
+It happens due to the call to gtk-g_main_context_iteration(NULL, TRUE) when we try to capture screen data, this blocks the gtk fx main loop.
+Possible solutions are:
+1. make a busy wait loop if we detect a gtk loop running
+gtk-g_main_context_iteration(NULL, gtk-gtk_main_level == 0);
+This will prevent the SwingNodeJDialogTest from hanging, and receive pixel color successfully.
+2. do the same change as in JDK-8326712, make a nested loop, this allows to get a pixel color, but the test still timed out, needs further investigation.
+
+-----
+Title: [JDK-8335789] [TESTBUG] XparColor.java test fails with Error. Parse Exception: Invalid or unrecognized bugid: @
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: XparColor.java test fails with following error
+Error. Parse Exception: Invalid or unrecognized bugid: @
+This test was modified as part of the https://bugs.openjdk.org/browse/JDK-8320608
+The error is due to extra @ character at https://github.com/lawrence-andrew/jdk/blob/master/test/jdk/java/awt/print/PrinterJob/XparColor.java#L27
+
+-----
+Title: [JDK-8336692] Redo fix for JDK-8284620
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: JDK-8284620 tried to fix memory leak for CodeBuffer::_overflow_arena but I think it is incorrect. It created an issue when CodeBuffer expanded and we try to use information in CodeBuffer::_overflow_arena but it is empty.
+CodeBuffer::_overflow_arena is used for forward labels patching to record labels location. What save us is that CodeBuffer expansion is rare case and usually labels are located near their target address so that expansion does not happen before a label is patched.
+Instead of nulling _overflow_arena in CodeBuffer::take_over_code_from() we should remove original line there which copied the value from temporary buffer.
+
+-----
+Title: [JDK-8284620] CodeBuffer may leak _overflow_arena
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: CodeBuffer is declared as StackObj, but it also has ResourceObj style new operator, to complicate thing further more, it has _overflow_arena that is C Heap allocated.
+When Stack allocated CodeBuffer owns _overflow_arena, it works fine, because its destructor frees _overflow_arena. But if resource allocated CodeBuffer owns _overflow_arena, the arena is leaked, because its destructor is never called.
+==1139627== 2,096 (96 direct, 2,000 indirect) bytes in 2 blocks are definitely lost in loss record 12,196 of 12,553
+==1139627==    at 0x484486F: malloc (vg_replace_malloc.c:381)
+==1139627==    by 0x5AE5B9E: malloc (os.cpp:656)
+==1139627==    by 0x5AE5B9E: os::malloc(unsigned long, MEMFLAGS, NativeCallStack const&) (os.cpp:632)
+==1139627==    by 0x527F216: AllocateHeap(unsigned long, MEMFLAGS, NativeCallStack const&, AllocFailStrategy::AllocFailEnum) (allocation.cpp:42)
+==1139627==    by 0x52887B8: Arena::operator new(unsigned long, MEMFLAGS) (arena.cpp:286)
+==1139627==    by 0x545E16E: CodeBuffer::create_patch_overflow() (codeBuffer.cpp:245)
+==1139627==    by 0x529A1BA: Label::add_patch_at(CodeBuffer*, int, char const*, int) (assembler.cpp:166)
+==1139627==    by 0x529ED05: Assembler::jcc(Assembler::Condition, Label&, bool) (assembler_x86.cpp:2320)
+==1139627==    by 0x5188724: jmpConUNode::emit(CodeBuffer&, PhaseRegAlloc*) const (x86_64.ad:12758)
+==1139627==    by 0x5B0759F: PhaseOutput::fill_buffer(CodeBuffer*, unsigned int*) (output.cpp:1681)
+==1139627==    by 0x548A7C1: Compile::Code_Gen() (compile.cpp:2858)
+==1139627==    by 0x548E7BC: Compile::Compile(ciEnv*, ciMethod*, int, Options, DirectiveSet*) (compile.cpp:849)
+==1139627==    by 0x53CD12F: C2Compiler::compile_method(ciEnv*, ciMethod*, int, bool, DirectiveSet*) (c2compiler.cpp:112)
+==1139627==    by 0x5496A03: CompileBroker::invoke_compiler_on_method(CompileTask*) (compileBroker.cpp:2294)
+==1139627==    by 0x54975FF: CompileBroker::compiler_thread_loop() (compileBroker.cpp:1967)
+==1139627==    by 0x5D496BD: JavaThread::thread_main_inner() (thread.cpp:1291)
+==1139627==    by 0x5D4F3AF: Thread::call_run() (thread.cpp:356)
+==1139627==    by 0x5AF0EA7: thread_native_entry(Thread*) (os_linux.cpp:706)
+==1139627==    by 0x4927B19: start_thread (pthread_create.c:443)
+==1139627==    by 0x49AB8E3: clone (clone.S:100)
+
+-----
+Title: [JDK-8337994] [REDO] Native memory leak when not recording any events
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: ADDITIONAL SYSTEM INFORMATION :
+OS (running in docker on a ubuntu 22.04) :
+Alpine Linux source887b8b5876c2-5784d75ffb-l5fgv 5.15.0-1058-aws #64~20.04.1-Ubuntu SMP Tue Apr 9 11:12:27 UTC 2024 x86_64 Linux
+$ java --version
+NOTE: Picked up JDK_JAVA_OPTIONS: -XX:NativeMemoryTracking=detail
+NOTE: Picked up JDK_JAVA_OPTIONS: -XX:NativeMemoryTracking=detail
+openjdk 21.0.3 2024-04-16 LTS
+OpenJDK Runtime Environment Zulu21.34+19-CA (build 21.0.3+9-LTS)
+OpenJDK 64-Bit Server VM Zulu21.34+19-CA (build 21.0.3+9-LTS, mixed mode, sharing)
+A DESCRIPTION OF THE PROBLEM :
+We have a service running into a native memory leak which we believe is related to JFR. This service is running on Java 21 and it's currently not using virtual threads at all. It is however pulling on a shared library which provide basic monitoring around thread pinning event within a class named PinnedThreadTracker. The source code of this class is included at the end of this description.
+When the service runs with this component enabled, it experiences a native memory leak. We do not get any leak when disabling this component. The heap/off-heap spaces are all within the limits defined and do not grow indefinitely. However, the process memory is growing. Using -XX:NativeMemoryTracking=detail, we are able to see the 'Tracing'  memory region growing and growing. Here is the result of 2 invocation of 'jcmd 1 VM.native_memory detail.diff scale=MB' spaced about 2 hours apart :
+Native Memory Tracking:
+(Omitting categories weighting less than 1MB)
+Total: reserved=4543MB +77MB, committed=2084MB +141MB
+-                 Java Heap (reserved=2252MB, committed=1074MB +60MB)
+(mmap: reserved=2252MB, committed=1074MB +60MB)
+-                     Class (reserved=1029MB, committed=32MB)
+(classes #40298 +76)
+(  instance classes #37933 +74, array classes #2365 +2)
+(malloc=5MB #132908 +1918)
+(mmap: reserved=1024MB, committed=27MB)
+: (  Metadata)
+(    reserved=192MB, committed=186MB +1MB)
+(    used=185MB +1MB)
+(    waste=1MB =0.49%)
+: (  Class space)
+(    reserved=1024MB, committed=27MB)
+(    used=25MB)
+(    waste=2MB =5.75%)
+-                    Thread (reserved=129MB -3MB, committed=13MB)
+(thread #129 -3)
+(stack: reserved=128MB -3MB, committed=13MB)
+-                      Code (reserved=250MB, committed=114MB)
+(malloc=8MB #21506 +1389)
+(mmap: reserved=242MB, committed=106MB)
+-                        GC (reserved=89MB, committed=66MB +1MB)
+(malloc=13MB #39253 +2286)
+(mmap: reserved=76MB, committed=53MB +1MB)
+-                 GCCardSet (reserved=3MB +2MB, committed=3MB +2MB)
+(malloc=3MB +2MB #3771 +1098)
+-                  Compiler (reserved=2MB, committed=2MB)
+(malloc=1MB #4047 +71)
+-                  Internal (reserved=7MB, committed=7MB)
+(malloc=7MB #93677 +482)
+-                     Other (reserved=3MB, committed=3MB)
+(malloc=3MB #1136 -5)
+-                    Symbol (reserved=62MB, committed=62MB)
+(malloc=58MB #539325 +515)
+(arena=5MB #1)
+-    Native Memory Tracking (reserved=38MB +4MB, committed=38MB +4MB)
+(malloc=1MB #12411 +2862)
+(tracking overhead=37MB +4MB)
+-        Shared class space (reserved=16MB, committed=13MB)
+(mmap: reserved=16MB, committed=13MB)
+-                   Tracing (reserved=464MB +73MB, committed=464MB +73MB)
+(malloc=464MB +73MB #1548059 +250121)
+-           Synchronization (reserved=4MB, committed=4MB)
+(malloc=4MB #43969 +128)
+-                 Metaspace (reserved=194MB, committed=188MB +1MB)
+(malloc=2MB #2448 +22)
+(mmap: reserved=192MB, committed=186MB +1MB)
+[0x00007f72792c8828] G1MonotonicArena::allocate()+0x1d8
+[0x00007f727927ff99] G1CardSet::create_coarsened_array_of_cards(unsigned int, bool)+0x39
+[0x00007f7279280323] G1CardSet::coarsen_container(void* volatile*, void*, unsigned int, bool)+0x123
+[0x00007f72792815a0] G1CardSet::add_to_howl(void*, unsigned int, unsigned int, bool)+0x150
+(malloc=1MB type=GCCardSet +1MB #284 +269)
+[0x00007f72793ddd96] JfrCheckpointManager::lease_thread_local(Thread*, unsigned long)+0x126
+[0x00007f72793e3c46] JfrCheckpointWriter::JfrCheckpointWriter(Thread*, bool, JfrCheckpointType, JfrCheckpointBufferKind)+0x26
+[0x00007f727944b164] JfrTypeManager::write_checkpoint(Thread*, unsigned long, oopDesc*)+0x174
+[0x00007f727943dc0c] JfrThreadLocal::on_start(Thread*)+0x9c
+(malloc=224MB type=Tracing +36MB #773886 +125058)
+[0x00007f72793ddd96] JfrCheckpointManager::lease_thread_local(Thread*, unsigned long)+0x126
+[0x00007f72793e3c46] JfrCheckpointWriter::JfrCheckpointWriter(Thread*, bool, JfrCheckpointType, JfrCheckpointBufferKind)+0x26
+[0x00007f727944b164] JfrTypeManager::write_checkpoint(Thread*, unsigned long, oopDesc*)+0x174
+[0x00007f727943df84] JfrThreadLocal::on_exit(Thread*)+0x94
+(malloc=224MB type=Tracing +36MB #773858 +125062)
+[0x00007f72797ac35b] os::reserve_memory_aligned(unsigned long, unsigned long, bool)+0x2b
+[0x00007f7279aaefbf] ReservedSpace::reserve(unsigned long, unsigned long, unsigned long, char*, bool)+0x51f
+[0x00007f7279aaf373] ReservedSpace::ReservedSpace(unsigned long, unsigned long, unsigned long, char*)+0x53
+[0x00007f7279aadc4b] metaspace::VirtualSpaceNode::create_node(unsigned long, metaspace::CommitLimiter*, metaspace::AbstractCounter*, metaspace::AbstractCounter*)+0x4b
+(mmap: reserved=128MB, committed=122MB +1MB Type=Metaspace)
+[0x00007f7279aaef90] ReservedSpace::reserve(unsigned long, unsigned long, unsigned long, char*, bool)+0x4f0
+[0x00007f7279286259] G1CollectedHeap::create_aux_memory_mapper(char const*, unsigned long, unsigned long)+0x39
+[0x00007f727928ac09] G1CollectedHeap::initialize()+0x2d9
+[0x00007f7279a59a36] universe_init()+0xd6
+(mmap: reserved=35MB, committed=17MB +1MB Type=GC)
+[0x00007f7279aafaa7] ReservedHeapSpace::try_reserve_range(char*, char*, unsigned long, char*, char*, unsigned long, unsigned long, unsigned long)+0x4c7
+[0x00007f7279ab0434] ReservedHeapSpace::initialize_compressed_heap(unsigned long, unsigned long, unsigned long)+0x614
+[0x00007f7279ab0699] ReservedHeapSpace::ReservedHeapSpace(unsigned long, unsigned long, unsigned long, char const*)+0x179
+[0x00007f7279a59c80] Universe::reserve_heap(unsigned long, unsigned long)+0x70
+(mmap: reserved=2252MB, committed=1074MB +60MB Type=Java Heap)
+[0x00007f72797a20aa] thread_native_entry(Thread*)+0x12a
+(mmap: reserved=127MB -3MB, committed=13MB Type=Thread Stack)
+Native Memory Tracking:
+(Omitting categories weighting less than 1MB)
+Total: reserved=4743MB +276MB, committed=2229MB +286MB
+-                 Java Heap (reserved=2252MB, committed=1020MB +6MB)
+(mmap: reserved=2252MB, committed=1020MB +6MB)
+-                     Class (reserved=1029MB, committed=32MB)
+(classes #40392 +170)
+(  instance classes #38027 +168, array classes #2365 +2)
+(malloc=5MB #133963 +2973)
+(mmap: reserved=1024MB, committed=27MB)
+: (  Metadata)
+(    reserved=192MB, committed=187MB +1MB)
+(    used=186MB +1MB)
+(    waste=1MB =0.49%)
+: (  Class space)
+(    reserved=1024MB, committed=27MB)
+(    used=25MB)
+(    waste=2MB =6.01%)
+-                    Thread (reserved=131MB -1MB, committed=13MB)
+(thread #131 -1)
+(stack: reserved=130MB -1MB, committed=13MB)
+-                      Code (reserved=250MB +1MB, committed=116MB +2MB)
+(malloc=8MB +1MB #21142 +1025)
+(mmap: reserved=242MB, committed=107MB +1MB)
+-                        GC (reserved=93MB +4MB, committed=69MB +4MB)
+(malloc=17MB +4MB #39987 +3020)
+(mmap: reserved=76MB, committed=52MB)
+-                 GCCardSet (reserved=3MB +2MB, committed=3MB +2MB)
+(malloc=3MB +2MB #3860 +1187)
+-                  Compiler (reserved=2MB, committed=2MB)
+(malloc=1MB #4028 +52)
+-                  Internal (reserved=7MB, committed=7MB)
+(malloc=7MB #94712 +1517)
+-                     Other (reserved=3MB, committed=3MB)
+(malloc=3MB #1137 -4)
+-                    Symbol (reserved=62MB, committed=62MB)
+(malloc=58MB #539867 +1057)
+(arena=5MB #1)
+-    Native Memory Tracking (reserved=48MB +14MB, committed=48MB +14MB)
+(malloc=1MB #12618 +3069)
+(tracking overhead=47MB +14MB)
+-        Shared class space (reserved=16MB, committed=13MB)
+(mmap: reserved=16MB, committed=13MB)
+-                   Tracing (reserved=647MB +256MB, committed=647MB +256MB)
+(malloc=647MB +256MB #2180371 +882433)
+-           Synchronization (reserved=4MB, committed=4MB)
+(malloc=4MB #44142 +301)
+-                 Metaspace (reserved=194MB, committed=189MB +1MB)
+(malloc=2MB #2600 +174)
+(mmap: reserved=192MB, committed=187MB +1MB)
+[0x00007f72792c8828] G1MonotonicArena::allocate()+0x1d8
+[0x00007f727927ff99] G1CardSet::create_coarsened_array_of_cards(unsigned int, bool)+0x39
+[0x00007f7279280323] G1CardSet::coarsen_container(void* volatile*, void*, unsigned int, bool)+0x123
+[0x00007f72792815a0] G1CardSet::add_to_howl(void*, unsigned int, unsigned int, bool)+0x150
+(malloc=1MB type=GCCardSet +1MB #287 +272)
+[0x00007f727978e67b] ImmutableOopMapSet::build_from(OopMapSet const*)+0x9b
+[0x00007f72790f64be] CodeBlob::CodeBlob(char const*, CompilerType, CodeBlobLayout const&, CodeBuffer*, int, int, OopMapSet*, bool, bool)+0x7e
+[0x00007f727913c709] CompiledMethod::CompiledMethod(Method*, char const*, CompilerType, int, int, CodeBuffer*, int, int, OopMapSet*, bool, bool)+0x109
+[0x00007f727975ff9a] nmethod::nmethod(Method*, CompilerType, int, int, int, CodeOffsets*, int, DebugInformationRecorder*, Dependencies*, CodeBuffer*, int, OopMapSet*, ExceptionHandlerTable*, ImplicitExceptionTable*, AbstractCompiler*, CompLevel, char*, int, JVMCINMethodData*)+0xaa
+(malloc=8MB type=Code +1MB #17611 +1002)
+[0x00007f7279825389] PtrQueueSet::exchange_buffer_with_new(PtrQueue&)+0x39
+[0x00007f727985aa0a] SATBMarkQueueSet::handle_zero_index(SATBMarkQueue&)+0x5a
+[0x00007f727985ab0b] SATBMarkQueueSet::enqueue_known_active(SATBMarkQueue&, oopDesc*)+0x3b
+(malloc=7MB type=GC +4MB #943 +493)
+[0x00007f72793ddd96] JfrCheckpointManager::lease_thread_local(Thread*, unsigned long)+0x126
+[0x00007f72793e3c46] JfrCheckpointWriter::JfrCheckpointWriter(Thread*, bool, JfrCheckpointType, JfrCheckpointBufferKind)+0x26
+[0x00007f727944b164] JfrTypeManager::write_checkpoint(Thread*, unsigned long, oopDesc*)+0x174
+[0x00007f727943dc0c] JfrThreadLocal::on_start(Thread*)+0x9c
+(malloc=316MB type=Tracing +128MB #1090043 +441215)
+[0x00007f72793ddd96] JfrCheckpointManager::lease_thread_local(Thread*, unsigned long)+0x126
+[0x00007f72793e3c46] JfrCheckpointWriter::JfrCheckpointWriter(Thread*, bool, JfrCheckpointType, JfrCheckpointBufferKind)+0x26
+[0x00007f727944b164] JfrTypeManager::write_checkpoint(Thread*, unsigned long, oopDesc*)+0x174
+[0x00007f727943df84] JfrThreadLocal::on_exit(Thread*)+0x94
+(malloc=316MB type=Tracing +128MB #1090013 +441217)
+[0x00007f72797ac35b] os::reserve_memory_aligned(unsigned long, unsigned long, bool)+0x2b
+[0x00007f7279aaefbf] ReservedSpace::reserve(unsigned long, unsigned long, unsigned long, char*, bool)+0x51f
+[0x00007f7279aaf373] ReservedSpace::ReservedSpace(unsigned long, unsigned long, unsigned long, char*)+0x53
+[0x00007f7279aadc4b] metaspace::VirtualSpaceNode::create_node(unsigned long, metaspace::CommitLimiter*, metaspace::AbstractCounter*, metaspace::AbstractCounter*)+0x4b
+(mmap: reserved=128MB, committed=123MB +1MB Type=Metaspace)
+[0x00007f7279aaef90] ReservedSpace::reserve(unsigned long, unsigned long, unsigned long, char*, bool)+0x4f0
+[0x00007f7279aaf16c] ReservedCodeSpace::ReservedCodeSpace(unsigned long, unsigned long, unsigned long)+0x5c
+[0x00007f727910191e] CodeCache::initialize_heaps()+0x25e
+[0x00007f7279101fd5] CodeCache::initialize()+0x55
+(mmap: reserved=240MB, committed=107MB +1MB Type=Code)
+[0x00007f7279aafaa7] ReservedHeapSpace::try_reserve_range(char*, char*, unsigned long, char*, char*, unsigned long, unsigned long, unsigned long)+0x4c7
+[0x00007f7279ab0434] ReservedHeapSpace::initialize_compressed_heap(unsigned long, unsigned long, unsigned long)+0x614
+[0x00007f7279ab0699] ReservedHeapSpace::ReservedHeapSpace(unsigned long, unsigned long, unsigned long, char const*)+0x179
+[0x00007f7279a59c80] Universe::reserve_heap(unsigned long, unsigned long)+0x70
+(mmap: reserved=2252MB, committed=1020MB +6MB Type=Java Heap)
+[0x00007f72797a20aa] thread_native_entry(Thread*)+0x12a
+(mmap: reserved=129MB -1MB, committed=13MB Type=Thread Stack)
+public class PinnedThreadTracker implements AutoCloseable
+{
+private static final Logger logger = CoveoLogger.getLogger(PinnedThreadTracker.class);
+private static final String VIRTUAL_THREAD_PINNED_JFR_EVENT_NAME = "jdk.VirtualThreadPinned";
+private final RecordingStream recordingStream;
+private final int maximumStackDepth;
+private final boolean isCloudEnvironment;
+public PinnedThreadTracker(Duration recordingThreshold, int maximumStackTraceDepth, Environment environment)
+{
+maximumStackDepth = maximumStackTraceDepth;
+isCloudEnvironment = environment.acceptsProfiles(Profiles.CLOUD_PROFILES);
+recordingStream = new RecordingStream();
+recordingStream.enable(VIRTUAL_THREAD_PINNED_JFR_EVENT_NAME)
+.withStackTrace()
+.withThreshold(Objects.requireNonNull(recordingThreshold));
+recordingStream.onEvent(VIRTUAL_THREAD_PINNED_JFR_EVENT_NAME, this::recordEvent);
+recordingStream.setReuse(true);
+recordingStream.setMaxAge(Duration.ofSeconds(5));
+recordingStream.startAsync();
+}
+private void recordEvent(RecordedEvent event)
+{
+if (isCloudEnvironment) {
+LogstashMarker markers = Markers.appendEntries(Map.of("event_stack_trace",
+getStackTrace(event.getStackTrace(),
+maximumStackDepth),
+"pinned_duration_ms",
+event.getDuration().toMillis()));
+logger.warn(markers,
+"Pinned thread event of duration : '{}'. See event_stack_trace for more details.",
+event.getDuration());
+} else {
+logger.warn("Pinned thread event of duration : '{}'. Stack trace:{}{}",
+event.getDuration(),
+System.lineSeparator(),
+getStackTrace(event.getStackTrace(), maximumStackDepth));
+}
+}
+@Override
+public void close()
+{
+recordingStream.close();
+}
+/**
+* Get a pretty printed stack trace from a {@link RecordedStackTrace}.
+* The toString implementation of {@link RecordedStackTrace} has a max depth of 5 which is not enough to get a proper picture.
+* This method is strongly inspired from the original classes, minus some details that are not relevant for our use case.
+*/
+private static String getStackTrace(RecordedStackTrace stackTrace, int maximumStackDepth)
+{
+StringBuilder builder = new StringBuilder();
+List frames = stackTrace.getFrames();
+int i = 0;
+int depth = 0;
+while (i = 0) {
+builder.append(" line: ").append(line);
+}
+}
+}
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+We're currently seeing this issue on only one service with no special setup. Therefore, I cannot provide an easy way to reproduce but hopefully from the details provided it will be enough to see the issue. If not, please say so and I'll try to find a way to reproduce it.
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+I'd expect this relatively simple JFR setup to not leak memory
+ACTUAL -
+memory leak
+FREQUENCY : always
+OS: generic
+
+-----
+Title: [JDK-8338571] [TestBug] DefaultCloseOperation.java test not working as expected wrt instruction after JDK-8325851 fix
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: Testsuite: Regression Manual
+Product(s) tested:23.0. 1 b06
+OS/architecture: Windows
+OS specific: No
+javax/swing/JFrame/DefaultCloseOperation.java test not working as expected wrt Instruction
+After JDK-8325851 fix TestFrame and TestDailog is loaded by default when test start which is not expected.
+Expected: TestFrame/TestDailog should load after user clicking on OpenFrame/OpenDailog button.
+PFA screenshot
+OS: generic
+
+-----
+Title: [JDK-8325851] Hide PassFailJFrame.Builder constructor
+Priority: P5
+Type: Bug
+Component: client-libs
+Description: The PassFailJFrame.Builder class provides a way to configure the parameters of PassFailJFrame in a set of chained method calls.
+The Builder class is public and has public constructor. At the same time, a better design would be to hide all the Builder constructors and rely on the builder() method which returns an instance of the Builder.
+At the same time, the builder() helper wasn't available until JDK-8294156 which was integrated in October 2023 whereas the Builder class became available with JDK-8294535 in August 2023.
+For this reason, there are 20 tests which create the PassFailJFrame.Builder object using its constructor instead of the helper method. These tests have to be updated.
+To find these tests, run:
+grep -r 'new PassFailJFrame.Builder' test/jdk
+Hiding the PassFailJFrame.Builder constructor is a better design choice. New tests should not create the builder using the `new` keyword. To enforce it, the Builder constructor needs to be private.
+
+-----
+Title: [JDK-8339356] Test javax/net/ssl/SSLSocket/Tls13PacketSize.java failed with java.net.SocketException: An established connection was aborted by the software in your host machine
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: ----------System.out:(20/1566)----------
+Server input bytes: 16366
+Client died: java.net.SocketException: An established connection was aborted by the software in your host machine
+java.net.SocketException: An established connection was aborted by the software in your host machine
+at java.base/sun.nio.ch.SocketDispatcher.read0(Native Method)
+at java.base/sun.nio.ch.SocketDispatcher.read(SocketDispatcher.java:46)
+at java.base/sun.nio.ch.NioSocketImpl.tryRead(NioSocketImpl.java:256)
+at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:307)
+at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:346)
+at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:796)
+at java.base/java.net.Socket$SocketInputStream.implRead(Socket.java:1118)
+at java.base/java.net.Socket$SocketInputStream.read(Socket.java:1105)
+at java.base/sun.security.ssl.SSLSocketInputRecord.read(SSLSocketInputRecord.java:489)
+at java.base/sun.security.ssl.SSLSocketInputRecord.readHeader(SSLSocketInputRecord.java:483)
+at java.base/sun.security.ssl.SSLSocketInputRecord.bytesInCompletePacket(SSLSocketInputRecord.java:70)
+at java.base/sun.security.ssl.SSLSocketImpl.readApplicationRecord(SSLSocketImpl.java:1461)
+at java.base/sun.security.ssl.SSLSocketImpl$AppInputStream.read(SSLSocketImpl.java:1068)
+at java.base/sun.security.ssl.SSLSocketImpl$AppInputStream.read(SSLSocketImpl.java:975)
+at Tls13PacketSize.runClientApplication(Tls13PacketSize.java:97)
+at SSLSocketTemplate.doClientSide(SSLSocketTemplate.java:302)
+at SSLSocketTemplate$2.run(SSLSocketTemplate.java:441)
+----------System.err:(23/1748)----------
+java.net.SocketException: An established connection was aborted by the software in your host machine
+at java.base/sun.nio.ch.SocketDispatcher.read0(Native Method)
+at java.base/sun.nio.ch.SocketDispatcher.read(SocketDispatcher.java:46)
+at java.base/sun.nio.ch.NioSocketImpl.tryRead(NioSocketImpl.java:256)
+at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:307)
+at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:346)
+at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:796)
+at java.base/java.net.Socket$SocketInputStream.implRead(Socket.java:1118)
+at java.base/java.net.Socket$SocketInputStream.read(Socket.java:1105)
+at java.base/sun.security.ssl.SSLSocketInputRecord.read(SSLSocketInputRecord.java:489)
+at java.base/sun.security.ssl.SSLSocketInputRecord.readHeader(SSLSocketInputRecord.java:483)
+at java.base/sun.security.ssl.SSLSocketInputRecord.bytesInCompletePacket(SSLSocketInputRecord.java:70)
+at java.base/sun.security.ssl.SSLSocketImpl.readApplicationRecord(SSLSocketImpl.java:1461)
+at java.base/sun.security.ssl.SSLSocketImpl$AppInputStream.read(SSLSocketImpl.java:1068)
+at java.base/sun.security.ssl.SSLSocketImpl$AppInputStream.read(SSLSocketImpl.java:975)
+at Tls13PacketSize.runClientApplication(Tls13PacketSize.java:97)
+at SSLSocketTemplate.doClientSide(SSLSocketTemplate.java:302)
+at SSLSocketTemplate$2.run(SSLSocketTemplate.java:441)
+See previous issues reported in JDK-8235973
+OS: windows
+
+-----
+Title: [JDK-8339475] Clean up return code handling for pthread calls in library coding
+Priority: P4
+Type: Bug
+Component: tools
+Description: It has been discussed that checking the return value of pthread_create should be done.
+See the discussion here https://github.com/openjdk/jdk/pull/20812 about the splashscreen coding .
+OS: generic
+
+-----
+Title: [JDK-8339524] Clean up a few ExtendedRobot tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: test/jdk/javax/swing/JInternalFrame/6725409/bug6725409.java is building ExtendedRobot without using anything from ExtendedRobot. This test should be changed to not build ExtendedRobot.
+
+-----
+Title: [JDK-8339687] Rearrange reachabilityFence()s in jdk.test.lib.util.ForceGC
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: ForceGC would be improved by moving the Reference.reachabilityFence() calls for 'obj' and 'ref'.
+Reference.reachabilityFence(obj) is currently placed after 'obj' has been set to null, so effectively does nothing. It should occur before obj = null;
+For Reference.reachabilityFence(ref): 'ref' is a PhantomReference to 'obj', and is registered with 'queue'. ForceGC.waitFor() later remove()s the reference from the queue, as an indication that some GC and reference processing has taken place (hopefully causing the BooleanSupplier to return true).
+The code expects the PhantomReference to be cleared and be put on the queue. But recall that a Reference refers to its queue, and not the other way around. If a Reference becomes unreachable and is garbage collected, it will never be enqueued.
+I argue that the VM/GC could determine that 'ref' is not used by waitFor() and collect it before the call to queue.remove(). Moving Reference.reachabilityFence(ref) after the for() loop would prevent this scenario.
+While this is only a very minor deficiency in ForceGC, I believe it would be good to ensure that the code behaves as expected.
+
+-----
+Title: [JDK-8339728] [Accessibility,Windows,JAWS] Bug in the getKeyChar method of the AccessBridge class
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: Note: This bug occurs with e.g. Java VM 17 and 21 running on Windows, it does not occur on macOS.
+Issue: If a JMenuItem contains a shortcut like “Ctrl + Comma”, the private method getKeyChar of the AccessBridge class cuts the “Comma” text to the first character and hence transfers “C” (instead of “Comma”) via the AccessBridge API. For a shortcut “Ctrl + Comma” in a menu item, screen readers announce “Ctrl + C” instead of “Ctrl + Comma” as shortcut, and the user may use a wrong shortcut for this menu action.
+For a shortcut like “Ctrl + Period” this method cuts the “Period” to “P”, the AccessBridge API sends “P” as char and hence a screen reader announces “Ctrl + P” as shortcut.
+For a shortcut like “Ctrl + Enter” this method cuts the “Enter” to “E”, the AccessBridge API sends “E” as char and hence a screen reader announces “Ctrl + E” as shortcut.
+You can use the simple class Test_JMenuItem_KeyStrokes below for testing the java application on Windows with a screen reader, or with the jaccessinspector.
+Following code in the method getKeyChar of the AccessBridge (starting with line 3970) is the cause for this issue:
+String keyText = KeyEvent.getKeyText(keyStroke.getKeyCode());
+debugString("[INFO]:   Shortcut is: " + keyText);
+if (keyText != null || keyText.length()  0) {
+CharSequence seq = keyText.subSequence(0, 1);
+if (seq != null || seq.length()  0) {
+return seq.charAt(0);
+}
+}
+When keyText is for example “Comma”, seq.charAt(0) = C, and then method will return “C” instead of Comma.
+public class Test_JMenuItem_KeyStrokes
+{
+public static void main(String[] args)
+{
+JMenuBar menuBar = new JMenuBar();
+JMenu menu = new JMenu("Menu with Keystrokes");
+menu.setMnemonic(KeyEvent.VK_M);
+menuBar.add(menu);
+KeyStroke keyStroke1 = KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, InputEvent.CTRL_DOWN_MASK);
+KeyStroke keyStroke2 = KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK);
+KeyStroke keyStroke3 = KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK);
+KeyStroke keyStroke4 = KeyStroke.getKeyStroke(KeyEvent.VK_PERIOD, InputEvent.CTRL_DOWN_MASK);
+KeyStroke keyStroke5 = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK);
+JCheckBoxMenuItem menuItem1 = new JCheckBoxMenuItem("First Menu Item");
+menuItem1.setAccelerator(keyStroke1);
+JCheckBoxMenuItem menuItem2 = new JCheckBoxMenuItem("Second Menu Item");
+menuItem2.setAccelerator(keyStroke2);
+JCheckBoxMenuItem menuItem3 = new JCheckBoxMenuItem("Third Menu Item");
+menuItem3.setAccelerator(keyStroke3);
+JCheckBoxMenuItem menuItem4 = new JCheckBoxMenuItem("Fourth Menu Item");
+menuItem4.setAccelerator(keyStroke4);
+JCheckBoxMenuItem menuItem5 = new JCheckBoxMenuItem("Fifth Menu Item");
+menuItem5.setAccelerator(keyStroke5);
+menu.add(menuItem1);
+menu.add(menuItem2);
+menu.add(menuItem3);
+menu.add(menuItem4);
+menu.add(menuItem5);
+JFrame frame = new JFrame("A Frame with Menu");
+frame.add(new JCheckBox("A checkbox"));
+frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+frame.setJMenuBar(menuBar);
+frame.setSize(300, 200);
+frame.setVisible(true);
+}
+}
+OS: windows
+
+-----
+Title: [JDK-8339810] Clean up the code in sun.tools.jar.Main to properly close resources and use ZipFile during extract
+Priority: P4
+Type: Bug
+Component: tools
+Description: There are several places in the sun.tools.jar.Main where we currently don't properly close the resources in a try/finally block. Also, the extract implementation against a JAR file, currently uses ZipInputStream while extracting the entries. We should switch to using ZipFile in that part of the implementation like we do for other operations against a JAR file, in the sun.tools.jar.Main code.
+
+-----
+Title: [JDK-8339834] Replace usages of -mx and -ms in some tests
+Priority: P4
+Type: Sub-task
+Component: core-libs
+Description: The java launcher currently supports "-mx", "-ms" as equivalent to "-Xmx" and "-Xms". This support is there only for backward compatibility against very old Java versions. Usage of "-mx" and "-ms" (along with some other launcher options) will be deprecated for removal, shortly. There are some tests which currently use these options when launching the tests. Those should be updated to use "-Xmx" and "-Xms" instead.
+
+-----
+Title: [JDK-8339883] Open source several AWT/2D related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source a test covering image rendering and 2 tests that test creating windows on a different screen than the default,
+
+-----
+Title: [JDK-8339902] Open source couple TextField related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Clean up and open source some TextArea related texts
+
+-----
+Title: [JDK-8339943] Frame not disposed in java/awt/dnd/DropActionChangeTest.java
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Main Frame is not disposed properly in java/awt/dnd/DropActionChangeTest.java which might cause test instability and time out errors.
+Sometimes I have seen that this test times out after waiting for more than 2 hours in CI runs and eventually fails the task itself.
+OS: generic
+
+-----
+Title: [JDK-8340078] Open source several 2D tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source several Java 2D tests related to rendering.
+
+-----
+Title: [JDK-8340411] open source several 2D imaging tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source some imaging tests.
+
+-----
+Title: [JDK-8340480] Bad copyright notices in changes from JDK-8339902
+Priority: P1
+Type: Bug
+Component: client-libs
+Description: They contain a spurious "summary" line:
+/*
+* Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+* DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+*
+* summary:
+* This code is free software; you can redistribute it and/or modify it
+* under the terms of the GNU General Public License version 2 only, as
+* published by the Free Software Foundation.
+
+-----
+Title: [JDK-8340687] Open source closed frame tests #1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: ./java/awt/Frame/DefaultFrameIconTest/DefaultFrameIconTest.java
+./java/awt/Frame/MenuCrash/MenuCrash.java
+./java/awt/Frame/FramePaintTest/FramePaintTest.java
+./java/awt/Frame/DisposeTest/DisposeTest.java
+
+-----
+Title: [JDK-8340719] Open source AWT List tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert and opensource few AWT list tests
+./java/awt/List/RepaintAfterResize/RepaintAfterResize.java
+./java/awt/List/MultiSelectionListHorizScrollbar/MultiSelectionListHorizScrollbar.java
+./java/awt/List/HandlingKeyEventIfMousePressedTest/HandlingKeyEventIfMousePressedTest.java
+./java/awt/List/ListActionEventTest/ListActionEventTest.java
+
+-----
+Title: [JDK-8340824] C2: Memory for TypeInterfaces not reclaimed by hashcons()
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: The list of interfaces for a TypeInterfaces is contained in a GrowableArray that's allocated in the type arena. When hashcons() deletes a TypeInterfaces object because an identical one exists, it can't reclaim memory for the object because it can only free the last thing that was allocated and that's the backing store for the GrowableArray, not the TypeInterfaces object.
+
+-----
+Title: [JDK-8340969] jdk/jfr/startupargs/TestStartDuration.java should be marked as flagless
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: Test jdk/jfr/startupargs/TestStartDuration.java
+checks duration, the time might be too small for stress options like Xcomp.
+So it makes sense to mark it as flaglesss.
+
+-----
+Title: [JDK-8341037] Use standard layouts in DefaultFrameIconTest.java and MenuCrash.java
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Two tests from JDK-8340687, test/jdk/java/awt/Frame/DefaultFrameIconTest.java and test/jdk/java/awt/Frame/MenuCrash.java, use two test UI windows.
+These tests can updated to use the standard multi-window layouts provided by JDK-8317116.
+
+-----
+Title: [JDK-8341111] open source several AWT tests including menu shortcut tests
+Priority: P4
+Type: Bug
+Component: client-libs
+
+-----
+Title: [JDK-8341453] java/awt/a11y/AccessibleJTableTest.java fails in some cases where the test tables are not visible
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The manual test java/awt/a11y/AccessibleJTableTest.java fails in some cases as the instruction window is too big and the two test tables are not seen clearly.
+The failing use-case is case no: 3 as it contains two tables and that cannot be fit along with the instruction window(PFA the screenshot).
+Workaround: Resizing the frame by dragging it horizontally fixes the issue
+OS: generic
+
+-----
+Title: [JDK-8341862] PPC64: C1 unwind_handler fails to unlock synchronized methods with LM_MONITOR
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: LIR_Assembler::emit_unwind_handler() calls C1_MacroAssembler::unlock_object() to unlock synchronized methods but there LM_MONITOR is not handled.
+
+-----
+Title: [JDK-8341978] Improve JButton/bug4490179.java
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: At first I noticed the javax/swing/JButton/bug4490179.java test does not release mouse button 1 which was introduced in JDK-8316285.
+This problem was resolved by JDK-8327401.
+https://github.com/openjdk/jdk/pull/19339#discussion_r1609201116
+The test code could be improved further, and the number of delays could be reduced.
+
+-----
+Title: [JDK-8341982] Simplify JButton/bug4323121.java
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The test javax/swing/JButton/bug4323121.java can be simplified, it contains lots of unused methods which could be removed.
+
+-----
+Title: [JDK-8342508] Use latch in BasicMenuUI/bug4983388.java instead of delay
+Priority: P5
+Type: Bug
+Component: client-libs
+Description: Use a CountDownLatch in javax/swing/plaf/basic/BasicMenuUI/4983388/bug4983388.java instead of delay.
+The latch provides a direct way to synchronise EDT and main thread, and the test will finish quicker.
+
+-----
+Title: [JDK-8342541] Exclude List/KeyEventsTest/KeyEventsTest.java from running on macOS
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The code in java/awt/List/KeyEventsTest/KeyEventsTest.java returns if the test is run on macOS.
+boolean isWin = false;
+if (Platform.isWindows()) {
+isWin = true;
+} else if (Platform.isOSX()) {
+System.out.println("Not for OS X");
+return;
+}
+https://github.com/openjdk/jdk/blob/236c71cad9fa269518456c11edcfb353bbfc084d/test/jdk/java/awt/List/KeyEventsTest/KeyEventsTest.java#L264-L270
+The test must have @requires tag so that it's not even selected for running on macOS. The condition can be removed from the test.
+
+-----
+Title: [JDK-8342602] Remove JButton/PressedButtonRightClickTest test
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The javax/swing/JButton/PressedButtonRightClickTest.java test was added by JDK-8049069 and it fully duplicates an existing test javax/swing/JButton/bug4490179.java.
+The bug4490179.java test used to be closed, it was open-sourced by JDK-8316285. Thus, an open-source test was needed for JDK-8049069. The bug4490179.java test should've been used as a regression test for JDK-8049069.
+Both bug4490179.java and PressedButtonRightClickTest.java had the same issue where mouse button 1 wasn't released before exiting the test. These issues were fixed independently.
+JDK-8341978 improves the test code, which makes PressedButtonRightClickTest.java redundant.
+
+-----
+Title: [JDK-8342609] jpackage test helper function incorrectly removes a directory instead of its contents only
+Priority: P4
+Type: Bug
+Component: tools
+Description: In TKit.DirectoryCleaner.accept() at https://github.com/openjdk/jdk/blob/8174cbd5cb797a80d48246a686897ef6fe64ed57/test/jdk/tools/jpackage/helpers/jdk/jpackage/test/TKit.java#L382 :
+---
+try (var pathStream = Files.walk(root, 0)) {
+paths = pathStream.collect(Collectors.toList());
+}
+---
+The intent is to get non-recursive contents of the `root` directory. However `Files.walk(root, 0)` call returns a stream that contains only the `root` itself. This is wrong as it makes the directory cleaner remove the contents of the `root` directory (intended behavior) and the `root` directory itself (NOT intended behavior).
+`Files.walk(root, 0)` should be replaced with `Files.list(root)`.
+The issue impacts only scenarios when jpackage tests are executed on the existing test directories and doesn't impact common scenarios of clean test runs.
+OS: generic
+
+-----
+Title: [JDK-8343102] Remove `--compress` from jlink command lines from jpackage tests
+Priority: P4
+Type: Bug
+Component: tools
+Description: RuntimeImageTest and RuntimePackageTest tests call jlink with `--compress` parameter. jlink issues warnings:
+---
+Warning: The 0 argument for --compress is deprecated and may be removed in a future release
+Warning: The 1 argument for --compress is deprecated and may be removed in a future release
+Warning: The 2 argument for --compress is deprecated and may be removed in a future release
+---
+Should stop using `--compress` jlink parameter before it starts failing.
+OS: generic
+
+-----
+Title: [JDK-8343118] [TESTBUG] java/awt/PrintJob/PrintCheckboxTest/PrintCheckboxManualTest.java fails with rror. Can't find HTML file PrintCheckboxManualTest.html
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Running java/awt/PrintJob/PrintCheckboxTest/PrintCheckboxManualTest.java fail with
+test result: Error. Can't find HTML file: C:\Reg_Client\src\open\test\jdk\java\awt\PrintJob\PrintCheckboxTest\PrintCheckboxManualTest.html
+Test looks for PrintCheckboxManualTest.html
+but the PrintCheckboxManualTest.html
+file does not exists
+https://github.com/openjdk/jdk/blob/master/test/jdk/java/awt/PrintJob/PrintCheckboxTest/PrintCheckboxManualTest.java#L30
+OS: generic
+
+-----
+Title: [JDK-8343144] UpcallLinker::on_entry racingly clears pending exception with GC safepoints
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: In UpcallLinker::on_entry we clear_pending_exception() right before transitioning from native to Java. This clears an oop on the thread that might be concurrently scanned by the GC. The GC may read the oop and update its address to a new location, without using any atomics at all (because we are in a safepoint and nobody should be messing around with it concurrently). The lack of atomics means that the following interleaving is possible:
+GCThread: old_oop = JT1-_pending_exception
+JT1: clear_pending_exception()
+GCThread: JT1-_pending_exception = new_addr(old_oop);
+Other interesting things can happen as well. But it's safe to say we shouldn't be messing around with oops in_native concurrently to GC safepoints.
+
+-----
+Title: [JDK-8343378] Exceptions in javax/management DeadLockTest.java do not cause test failure
+Priority: P4
+Type: Bug
+Component: core-svc
+Description: This test will print its " Test failed for " message on an Exception, but then pass.
+It could test multiple protocols, which is theoretical at the moment, but any of them failing should cause a test failure.
+
+-----
+Title: [JDK-8344646] The libjsig deprecation warning should go to stderr not stdout
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: In JDK 16 we deprecated the old signal and sigset signal-chaining interfaces under JDK-8257572. The deprecation warning was written to stdout but all other warnings go to stderr. Having the warning be on stdout causes interference with application output so we should fix it.
+
+-----
+Title: [JDK-8345368] java/io/File/createTempFile/SpecialTempFile.java fails on Windows Server 2025
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: This test case fails during creation of files with OS reserved/forbidden file name eg : com7, LPT1.
+It is the same issue like in JDK-8274122. I would suggest to add Windows Server 2025 to the check in the test.
+It would be great if the detection would also work for future releases.
+OS: windows
+
+-----
+Title: [JDK-8345375] Improve debuggability of test/jdk/java/net/Socket/CloseAvailable.java
+Priority: P4
+Type: Sub-task
+Component: core-libs
+Description: The test/jdk/java/net/Socket/CloseAvailable.java has been failing intermittently, details of which have been noted in https://bugs.openjdk.org/browse/JDK-8269526. The test code can be improved to help identify the cause of these failures.
+
+-----
+Title: [JDK-8345414] Google CAInterop test failures
+Priority: P3
+Type: Bug
+Component: security-libs
+Description: Following 5 tests in CAInterop.java for Google root CAs fail OCSP verification
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#globalsigneccrootcar4
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#gtsrootcar1
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#gtsrootcar2
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#gtsrootecccar3
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#gtsrootecccar4
+Error:
+java.lang.RuntimeException: Failed to validate https://revoked.gtsr1.demo.pki.goog
+at ValidatePathWithURL.validateDomain(ValidatePathWithURL.java:129)
+The reason is that the URLs now return 404, these have been moved:
+good.gtsr1.demo.pki.goog - good.gtsr1.demosite.pki.goog
+revoked.gtsr1.demo.pki.goog - revoked.gtsr1.demosite.pki.goog
+good.gtsr2.demo.pki.goog - good.gtsr2.demosite.pki.goog
+revoked.gtsr2.demo.pki.goog - revoked.gtsr2.demosite.pki.goog
+good.gtsr3.demo.pki.goog - good.gtsr3.demosite.pki.goog
+revoked.gtsr3.demo.pki.goog - revoked.gtsr3.demosite.pki.goog
+good.gtsr4.demo.pki.goog - good.gtsr4.demosite.pki.goog
+revoked.gtsr4.demo.pki.goog - revoked.gtsr4.demosite.pki.goog
+
+-----
+Title: [JDK-8347424] Fix and rewrite sun/security/x509/DNSName/LeadingPeriod.java test
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: Noticed this when backporting JDK-8311546. The test is actually broken, as it does not include CA cert in the certification path. So it passes even without the fix, and thus the test does not actually tests what the fix is supposed to fix.
+The test is also quite hairy and can be drastically simplified.
+I think JDK-8320372 actually broke it: https://github.com/openjdk/jdk/commit/a2c0fa6f9ccefd3d1b088c51d0b8170cfb59a885#diff-518af459086b0cd1aef2498da82abf7da93391c030662e55312860ac9ce80542L55
+
+-----
+Title: [JDK-8347427] JTabbedPane/8134116/Bug8134116.java has no license header
+Priority: P2
+Type: Bug
+Component: client-libs
+Description: The test/jdk/javax/swing/JTabbedPane/8134116/Bug8134116.java file has no license header.
+
+-----
+Title: [JDK-8347576] Error output in libjsound has non matching format strings
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: When enabling the jsound  ERROR and TRACE reporting (see src/java.desktop/share/native/libjsound/Configure.h  https://github.com/openjdk/jdk/blob/master/src/java.desktop/share/native/libjsound/Configure.h#L32 ), we run into these build warnings as errors because at some places the format specifiers do not match the number types :
+/jdk/src/java.desktop/share/native/libjsound/MidiInDevice.c: In function 'Java_com_sun_media_sound_MidiInDevice_nGetTimeStamp':
+/jdk/src/java.desktop/share/native/libjsound/Utilities.h:38:65: error: format '%lld' expects argument of type 'long long int', but argument 3 has type 'jlong' {aka 'long int'} [-Werror=format=]
+38 | #define ERROR1(string, p1)                    { fprintf(stdout, (string), (p1)); fflush(stdout); }
+|                                                                 ^~~~~~~~  ~~~~
+|                                                                           |
+|                                                                           jlong {aka long int}
+/jdk/src/java.desktop/share/native/libjsound/MidiInDevice.c:140:9: note: in expansion of macro 'ERROR1'
+140 |         ERROR1("Java_com_sun_media_sound_MidiInDevice_nGetTimeStamp: MIDI_IN_GetTimeStamp returned %lld\n", ret);
+|         ^~~~~~
+cc1: all warnings being treated as errors
+* For target support_native_java.desktop_libjsound_MidiOutDevice.o:
+In file included from /jdk/src/java.desktop/share/native/libjsound/MidiOutDevice.c:40:
+/jdk/src/java.desktop/share/native/libjsound/MidiOutDevice.c: In function 'Java_com_sun_media_sound_MidiOutDevice_nGetTimeStamp':
+/jdk/src/java.desktop/share/native/libjsound/Utilities.h:38:65: error: format '%lld' expects argument of type 'long long int', but argument 3 has type 'jlong' {aka 'long int'} [-Werror=format=]
+38 | #define ERROR1(string, p1)                    { fprintf(stdout, (string), (p1)); fflush(stdout); }
+|                                                                 ^~~~~~~~  ~~~~
+|                                                                           |
+|                                                                           jlong {aka long int}
+/jdk/src/java.desktop/share/native/libjsound/MidiOutDevice.c:97:9: note: in expansion of macro 'ERROR1'
+97 |         ERROR1("Java_com_sun_media_sound_MidiOutDevice_nGetTimeStamp: MIDI_IN_GetTimeStamp returned %lld\n", ret);
+|         ^~~~~~
+cc1: all warnings being treated as errors
+OS: generic
+
+-----
+Title: [JDK-8347911] Limit the length of inflated text chunks
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: In PNG we have non-essential compressed text chunks zTXt and iTXt, which can consume considerable amount of memory when they contain large amount of compressed data.
+Since these are non-essential chunks we should restrict the amount of data we want to inflate.
+OS: generic
+
+-----
+Title: [JDK-8348625] [21u, 17u] Revert JDK-8185862 to restore old java.awt.headless behavior on Windows
+Priority: P2
+Type: Bug
+Component: client-libs
+Description: JDK-8185862 changed the detection of headless mode on Windows by enumerating displays and turning on headless mode when only virtual devices exist. This causes problems with several use cases, mostly for automatic testing, e.g. JDK-8336862, JDK-8340992, JDK-8341294.
+While the new detection mode seems correct from its idea, we should revert the change for the current LTS update releases and try to focus on fixing issues with explicitly using -Djava.awt.headless=true in the head release.
+OS: windows
+
+-----
+Title: [JDK-8349603] [21u, 17u, 11u] Update GHA JDKs after Jan/25 updates
+Priority: P4
+Type: Bug
+Component: infrastructure
+Description: Time to bump GHA JDKs.
+
+-----
+Title: [JDK-8352097] (tz) zone.tab update missed in 2025a backport
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: The zone.tab file was removed by JDK-8166983 in trunk and so was not updated as part of the original version of JDK-8347965.
+While the 24u backport did update zone.tab, the 21u backport - and subsequent backports to 17u, 11u & 8u based on this - did not,due to being based on the trunk backport.
+We should apply the zone.tab update to the 2025a updates in the upcoming April releases. Long-term, we should look at the possibility of backporting JDK-8166983 as tzdata is frequently updated and these files only in older JDK releases are likely to be missed.
+OS: generic

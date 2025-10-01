@@ -1,0 +1,1646 @@
+-----
+Title: [JDK-8347095] Bad copyright notices in changes from JDK-8339902
+Description:
+(no description)
+
+-----
+Title: [JDK-8339902] Open source couple TextField related tests
+Description:
+Clean up and open source some TextArea related texts
+
+-----
+Title: [JDK-8348068] Various test failures after JDK-8334305
+Description:
+(no description)
+
+-----
+Title: [JDK-8334305] Remove all code for  nsk.share.Log verbose mode
+Description:
+The nsk.share.Log is made to be always verbose. Need to clean all corresponding code.
+
+-----
+Title: [JDK-8346625] JViewport Test headless failure
+Description:
+(no description)
+
+-----
+Title: [JDK-8349089] JTabbedPane/8134116/Bug8134116.java has no license header
+Description:
+(no description)
+
+-----
+Title: [JDK-8348625] [21u, 17u] Revert JDK-8185862 to restore old java.awt.headless behavior on Windows
+Description:
+JDK-8185862 changed the detection of headless mode on Windows by enumerating displays and turning on headless mode when only virtual devices exist. This causes problems with several use cases, mostly for automatic testing, e.g. JDK-8336862, JDK-8340992, JDK-8341294.
+
+While the new detection mode seems correct from its idea, we should revert the change for the current LTS update releases and try to focus on fixing issues with explicitly using -Djava.awt.headless=true in the head release.
+
+-----
+Title: [JDK-8185862] AWT Assertion Failure in ::GetDIBits(hBMDC, hBM, 0, 1, 0, gpBitmapInfo, 0) 'awt_Win32GraphicsDevice.cpp', at line 185
+Description:
+The test failed on Windows with following assertion:
+
+[glue.process.err] [stress.process.err] *********************
+
+[glue.process.err] [stress.process.err] AWT Assertion Failure
+
+[glue.process.err] [stress.process.err] *********************
+
+[glue.process.err] [stress.process.err] ::GetDIBits(hBMDC, hBM, 0, 1, 0, gpBitmapInfo, 0)
+
+[glue.process.err] [stress.process.err] File 'awt_Win32GraphicsDevice.cpp', at line 185
+
+[glue.process.err] [stress.process.err] GetLastError() is 57 : The parameter is incorrect.
+
+[glue.process.err] [stress.process.err]
+
+[glue.process.err] [stress.process.err] Do you want to break into the debugger?
+
+[glue.process.err] [stress.process.err] *********************
+
+[glue.process.err] [stress.process.err] *********************
+
+[glue.process.err] [stress.process.err] AWT Assertion Failure
+
+[glue.process.err] [stress.process.err] *********************
+
+[glue.process.err] [stress.process.err] ::DeleteObject(hBM)
+
+[glue.process.err] [stress.process.err] File 'awt_Win32GraphicsDevice.cpp', at line 298
+
+[glue.process.err] [stress.process.err] GetLastError() is 57 : The parameter is incorrect.
+
+[glue.process.err] [stress.process.err]
+
+[glue.process.err] [stress.process.err] Do you want to break into the debugger?
+
+[glue.process.err] [stress.process.err] *********************
+
+[glue.process.err] [stress.process.err] *********************
+
+[glue.process.err] [stress.process.err] AWT Assertion Failure
+
+[glue.process.err] [stress.process.err] *********************
+
+[glue.process.err] [stress.process.err] ::DeleteDC(hBMDC)
+
+[glue.process.err] [stress.process.err] File 'awt_Win32GraphicsDevice.cpp', at line 299
+
+[glue.process.err] [stress.process.err] GetLastError() is 6 : The handle is invalid.
+
+[glue.process.err] [stress.process.err]
+
+-----
+Title: [JDK-8346749] File libCreationTimeHelper.c compile fails on Alpine
+Description:
+(no description)
+
+-----
+Title: [JDK-8346630] runtime/handshake/HandshakeDirectTest.java causes "monitor end should be strictly below the frame pointer" assertion failure on AArch64
+Description:
+(no description)
+
+-----
+Title: [JDK-8346900] Crash due to invalid oop in nmethod after C1 patching
+Description:
+(no description)
+
+-----
+Title: [JDK-8346973] C2: basic blocks with only BoxLock nodes are wrongly treated as empty
+Description:
+(no description)
+
+-----
+Title: [JDK-8347884] Add test for Allocation elimination after use as alignment reference by SuperWord
+Description:
+(no description)
+
+-----
+Title: [JDK-8349657] ZGC: segmentation fault due to missing node type check in barrier elision analysis
+Description:
+(no description)
+
+-----
+Title: [JDK-8348066] test/jdk/sun/security/x509/DNSName/LeadingPeriod.java validity check failed
+Description:
+(no description)
+
+-----
+Title: [JDK-8348341] Crash: SIGSEGV in dlerror()
+Description:
+(no description)
+
+-----
+Title: [JDK-8346812] Get rid of JApplet in test/jdk/sanity/client/lib/SwingSet2/src/DemoModule.java
+Description:
+(no description)
+
+-----
+Title: [JDK-8346858] [XWayland] JavaFX hangs when calling java.awt.Robot.getPixelColor
+Description:
+(no description)
+
+-----
+Title: [JDK-8346899] [XWayland] test/jdk/java/awt/Mouse/EnterExitEvents/ResizingFrameTest.java
+Description:
+(no description)
+
+-----
+Title: [JDK-8349439] [TestBug] DefaultCloseOperation.java test not working as expected wrt instruction after JDK-8325851 fix
+Description:
+(no description)
+
+-----
+Title: [JDK-8325851] Hide PassFailJFrame.Builder constructor
+Description:
+The PassFailJFrame.Builder class provides a way to configure the parameters of PassFailJFrame in a set of chained method calls.
+
+The Builder class is public and has public constructor. At the same time, a better design would be to hide all the Builder constructors and rely on the builder() method which returns an instance of the Builder.
+
+At the same time, the builder() helper wasn't available until JDK-8294156 which was integrated in October 2023 whereas the Builder class became available with JDK-8294535 in August 2023.
+
+For this reason, there are 20 tests which create the PassFailJFrame.Builder object using its constructor instead of the helper method. These tests have to be updated.
+
+To find these tests, run:
+
+grep -r 'new PassFailJFrame.Builder' test/jdk
+
+Hiding the PassFailJFrame.Builder constructor is a better design choice. New tests should not create the builder using the `new` keyword. To enforce it, the Builder constructor needs to be private.
+
+-----
+Title: [JDK-8349443] Limit the length of inflated text chunks
+Description:
+(no description)
+
+-----
+Title: [JDK-8350505] [Accessibility,Windows,JAWS] Bug in the getKeyChar method of the AccessBridge class
+Description:
+(no description)
+
+-----
+Title: [JDK-8350531] TrayIcon tests fail in Ubuntu 24.10 Wayland
+Description:
+(no description)
+
+-----
+Title: [JDK-8350669] javax/swing/JFileChooser/FileSystemView/WindowsDefaultIconSizeTest.java creates tmp file in src dir
+Description:
+(no description)
+
+-----
+Title: [JDK-8346748] [REDO] java/nio/file/attribute/BasicFileAttributeView/CreationTime.java#tmp fails on alinux3
+Description:
+(no description)
+
+-----
+Title: [JDK-8347876] Request with timeout aborts later in-flight request on HTTP/1.1 cxn
+Description:
+(no description)
+
+-----
+Title: [JDK-8348843] (tz) Update Timezone Data to 2025a
+Description:
+(no description)
+
+-----
+Title: [JDK-8349827] java/nio/file/Files/probeContentType/Basic.java fails on Windows 2025
+Description:
+(no description)
+
+-----
+Title: [JDK-8349987] java/io/File/createTempFile/SpecialTempFile.java failing
+Description:
+(no description)
+
+-----
+Title: [JDK-8354711] UpcallLinker::on_exit races with GC when copying frame anchor
+Description:
+(no description)
+
+-----
+Title: [JDK-8345499] C2: Memory for TypeInterfaces not reclaimed by hashcons()
+Description:
+(no description)
+
+-----
+Title: [JDK-8346000] [REDO] Native memory leak when not recording any events
+Description:
+(no description)
+
+-----
+Title: [JDK-8346004] C2: assert(!n_loop->is_member(get_loop(lca))) failed: control must not be back in the loop
+Description:
+(no description)
+
+-----
+Title: [JDK-8346189] AArch64: VM crashes with SIGILL when prctl is disallowed
+Description:
+(no description)
+
+-----
+Title: [JDK-8346332] C2: Use after free in PhaseChaitin::Register_Allocate()
+Description:
+(no description)
+
+-----
+Title: [JDK-8346891] Checked_cast assert in CDS compare_by_loader
+Description:
+(no description)
+
+-----
+Title: [JDK-8347028] [s390x] minimal build failure
+Description:
+(no description)
+
+-----
+Title: [JDK-8348201] Kmem limit and max values swapped when printing container information
+Description:
+(no description)
+
+-----
+Title: [JDK-8348394] Shenandoah: Test TestJcmdHeapDump.java#aggressive intermittent assert(gc_cause() == GCCause::_no_gc) failed: Over-writing cause
+Description:
+(no description)
+
+-----
+Title: [JDK-8348942] cpuset cgroups controller is required for no good reason
+Description:
+(no description)
+
+-----
+Title: [JDK-8350001] [ubsan] adjustments to filemap.cpp and virtualspace.cpp for macOS aarch64
+Description:
+(no description)
+
+-----
+Title: [JDK-8347176] Compile tests with the same visibility rules as product code
+Description:
+(no description)
+
+-----
+Title: [JDK-8349729] [21u] AIX jtreg tests fail to compile with qvisibility=hidden
+Description:
+jdk-21.0.7+1 on AIX is failing to compile with error:
+
+14:56:45  ld: 0711-407 ERROR: Symbol .std::__1::basic_string, std::__1::allocator > std::__1::operator+, std::__1::allocator >(char const*, std::__1::basic_string, std::__1::allocator > const&)
+
+14:56:45  	Visibility is not allowed on a reference to an imported symbol.
+
+14:56:45  gmake[3]: *** [test/JtregNativeJdk.gmk:148: /home/jenkins/workspace/build-scripts/jobs/jdk21u/jdk21u-aix-ppc64-temurin/workspace/build/src/build/aix-ppc64-server-release/support/test/jdk/jtreg/native/bin/NullCallerTest] Error 8
+
+Ref build log: https://ci.adoptium.net/job/build-scripts/job/jobs/job/jdk21u/job/jdk21u-aix-ppc64-temurin/88/consoleFull
+
+I suspect recent change: JDK-8327460
+
+may be the cause? Not sure AIX jtreg test code links with -qvisibility=hidden
+
+possibly??
+
+-----
+Title: [JDK-8345708] Test sun/security/validator/samedn.sh CertificateNotYetValidException: NotBefore validation
+Description:
+(no description)
+
+-----
+Title: [JDK-8345884] SunPKCS11 provider checks on PKCS11 Mechanism are problematic
+Description:
+(no description)
+
+-----
+Title: [JDK-8346636] Test sun/security/pkcs11/Provider/RequiredMechCheck.java needs write access to src tree
+Description:
+(no description)
+
+-----
+Title: [JDK-8346813] SunPKCS11 initialization will call C_GetMechanismInfo on unsupported mechanisms
+Description:
+(no description)
+
+-----
+Title: [JDK-8346817] Google CAInterop test failures
+Description:
+(no description)
+
+-----
+Title: [JDK-8348065] Certificate name constraints improperly validated with leading period
+Description:
+(no description)
+
+-----
+Title: [JDK-8349870] Distrust TLS server certificates anchored by Camerfirma Root CAs
+Description:
+(no description)
+
+-----
+Title: [JDK-8354709] Jarsigner should print a warning if an entry is removed
+Description:
+(no description)
+
+-----
+Title: [JDK-8346079] Consolidate EmptyFolderTest and EmptyFolderPackageTest jpackage tests into single java file
+Description:
+(no description)
+
+-----
+Title: [JDK-8346699] Incorrect format string after JDK-8339475
+Description:
+(no description)
+
+-----
+Title: [JDK-8339475] Clean up return code handling for pthread calls in library coding
+Description:
+It has been discussed that checking the return value of pthread_create should be done.
+
+See the discussion here https://github.com/openjdk/jdk/pull/20812 about the splashscreen coding .
+
+-----
+Title: [JDK-8346815] Test BasicTest.java javac compile fails cannot find symbol
+Description:
+(no description)
+
+-----
+Title: [JDK-8345701] Remove applet usage from JColorChooser tests Test4222508
+Description:
+(no description)
+
+-----
+Title: [JDK-8345702] [TESTBUG] XparColor.java test fails with Error. Parse Exception: Invalid or unrecognized bugid: @
+Description:
+(no description)
+
+-----
+Title: [JDK-8345707] Test javax/swing/JFileChooser/8080628/bug8080628.java doesn't test for GTK L&F
+Description:
+(no description)
+
+-----
+Title: [JDK-8346395] Remove applet usage from JColorChooser tests Test4319113
+Description:
+(no description)
+
+-----
+Title: [JDK-8346396] Remove applet usage from JColorChooser tests Test4759306
+Description:
+(no description)
+
+-----
+Title: [JDK-8346397] Remove applet usage from JColorChooser tests Test6348456
+Description:
+(no description)
+
+-----
+Title: [JDK-8346398] Convert java/awt/print/PageFormat/SetOrient.html applet test to main
+Description:
+(no description)
+
+-----
+Title: [JDK-8346401] Remove applet usage from JColorChooser tests Test4887836
+Description:
+(no description)
+
+-----
+Title: [JDK-8346402] Remove applet usage from JColorChooser tests Test6977726
+Description:
+(no description)
+
+-----
+Title: [JDK-8346407] Open source few Undecorated Frame tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8346408] java/awt/Frame/MaximizeUndecoratedTest.java fails in OEL due to a slight color difference
+Description:
+(no description)
+
+-----
+Title: [JDK-8346409] PrintNullString.java doesn't use float arguments
+Description:
+(no description)
+
+-----
+Title: [JDK-8346417] Open source couple TextField related tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8346425] Improve JButton/bug4490179.java
+Description:
+(no description)
+
+-----
+Title: [JDK-8346451] Open some swing tests 2
+Description:
+(no description)
+
+-----
+Title: [JDK-8346452] Open some swing tests 4
+Description:
+(no description)
+
+-----
+Title: [JDK-8346458] Open some swing tests 5
+Description:
+(no description)
+
+-----
+Title: [JDK-8346459] Open some swing tests 6
+Description:
+(no description)
+
+-----
+Title: [JDK-8346537] Convert java/awt/image/MemoryLeakTest/MemoryLeakTest.java applet test to main
+Description:
+(no description)
+
+-----
+Title: [JDK-8346539] Convert java/awt/print/Dialog/PrintApplet.java applet test to main
+Description:
+(no description)
+
+-----
+Title: [JDK-8346540] Convert javax/swing/JColorChooser/8065098/bug8065098.java applet test to main
+Description:
+(no description)
+
+-----
+Title: [JDK-8346542] Convert java/awt/print/PrinterJob/PrinterDialogsModalityTest/PrinterDialogsModalityTest.html applet test to main
+Description:
+(no description)
+
+-----
+Title: [JDK-8346624] Open source several Swing JTree JViewport KeyboardManager tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8346626] Remove applet usage from JColorChooser tests Test4759934
+Description:
+(no description)
+
+-----
+Title: [JDK-8346627] Convert java/awt/im/JTextFieldTest.java applet test to main
+Description:
+(no description)
+
+-----
+Title: [JDK-8346629] Frame not disposed in java/awt/dnd/DropActionChangeTest.java
+Description:
+(no description)
+
+-----
+Title: [JDK-8346635] PassFailJFrame.java test result: Error. Bad action for script: build}
+Description:
+(no description)
+
+-----
+Title: [JDK-8346640] java/awt/Graphics2D/ScaledTransform/ScaledTransform.java dialog does not get disposed
+Description:
+(no description)
+
+-----
+Title: [JDK-8346646] Exclude List/KeyEventsTest/KeyEventsTest.java from running on macOS
+Description:
+(no description)
+
+-----
+Title: [JDK-8346746] Open source several Swing JToolbar JTooltip JTree tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8346804] Open source several Swing JTree tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8346806] Open source several Swing JToolbar tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8346807] Delete Redundant Printer Dialog Modality Test
+Description:
+(no description)
+
+-----
+Title: [JDK-8346816] Remove JButton/PressedButtonRightClickTest test
+Description:
+(no description)
+
+-----
+Title: [JDK-8346851] Open source several AWT/2D related tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8346894] Open some swing tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8346895] Convert javax/swing/JCheckBox/8032667/bug8032667.java applet test to main
+Description:
+(no description)
+
+-----
+Title: [JDK-8347096] Open source AWT List tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8347103] Clean up a few ExtendedRobot tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8347442] Convert java/awt/image/multiresolution/MultiDisplayTest/MultiDisplayTest.java applet test to main
+Description:
+(no description)
+
+-----
+Title: [JDK-8347443] [TEST_BUG]GTK L&F: There is no swatches or RGB tab in JColorChooser
+Description:
+(no description)
+
+-----
+Title: [JDK-8347589] [macos] Test java/awt/Frame/ExceptionOnSetExtendedStateTest/ExceptionOnSetExtendedStateTest.java fails
+Description:
+(no description)
+
+-----
+Title: [JDK-8347878] Remove applet usage from JFileChooser tests bug6698013
+Description:
+(no description)
+
+-----
+Title: [JDK-8347879] Manual printer tests have no Pass/Fail buttons, instructions close set 2
+Description:
+(no description)
+
+-----
+Title: [JDK-8347882] Open source closed frame tests #1
+Description:
+(no description)
+
+-----
+Title: [JDK-8347883] Write a test to check various components events are triggered properly
+Description:
+(no description)
+
+-----
+Title: [JDK-8347930] DrawFocusRect() may cause an assertion failure
+Description:
+(no description)
+
+-----
+Title: [JDK-8348057] [macOS] java/awt/dnd/NextDropActionTest/NextDropActionTest.java fails with java.lang.RuntimeException: wrong next drop action!
+Description:
+(no description)
+
+-----
+Title: [JDK-8348059] Manual printer tests have no Pass/Fail buttons, instructions close set 1
+Description:
+(no description)
+
+-----
+Title: [JDK-8348060] Convert PageFormat/Orient.java to use PassFailJFrame
+Description:
+(no description)
+
+-----
+Title: [JDK-8348069] [macos] javax/swing/ProgressMonitor/ProgressMonitorEscapeKeyPress.java fails sometimes in macos
+Description:
+(no description)
+
+-----
+Title: [JDK-8348070] java/awt/a11y/AccessibleJTableTest.java fails in some cases where the test tables are not visible
+Description:
+(no description)
+
+-----
+Title: [JDK-8348071] Simplify JButton/bug4323121.java
+Description:
+(no description)
+
+-----
+Title: [JDK-8348072] javax/swing/text/StyledEditorKit/4506788/bug4506788.java fails in ubuntu22.04
+Description:
+(no description)
+
+-----
+Title: [JDK-8348331] Simplify awt/print/PageFormat/NullPaper.java test
+Description:
+(no description)
+
+-----
+Title: [JDK-8348332] Use standard layouts in DefaultFrameIconTest.java and MenuCrash.java
+Description:
+(no description)
+
+-----
+Title: [JDK-8348333] open source several AWT tests including menu shortcut tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8348339] [TESTBUG] java/awt/PrintJob/PrintCheckboxTest/PrintCheckboxManualTest.java fails with rror. Can't find HTML file PrintCheckboxManualTest.html
+Description:
+(no description)
+
+-----
+Title: [JDK-8348947] Convert java/awt/Frame/FrameStateTest/FrameStateTest.html applet test to main
+Description:
+(no description)
+
+-----
+Title: [JDK-8349277] test/jdk/javax/swing/JScrollBar/4865918/bug4865918.java fails in ubuntu22.04
+Description:
+(no description)
+
+-----
+Title: [JDK-8349429] Add more details to FrameStateTest.java test instructions
+Description:
+(no description)
+
+-----
+Title: [JDK-8349436] Open source several 2D tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8349437] [TEST_BUG]GTK L&F: There is no Details button in FileChooser Dialog
+Description:
+(no description)
+
+-----
+Title: [JDK-8349642] open source several 2D imaging tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8350003] Error output in libjsound has non matching format strings
+Description:
+(no description)
+
+-----
+Title: [JDK-8350407] Convert java/awt/print/bug8023392/bug8023392.html applet test to main
+Description:
+(no description)
+
+-----
+Title: [JDK-8350408] Remove jtreg tag manual=yesno for java/awt/print/PrinterJob/PrintTextTest.java
+Description:
+(no description)
+
+-----
+Title: [JDK-8350409] Write a test to compare the images
+Description:
+(no description)
+
+-----
+Title: [JDK-8350529] javax/swing/JScrollBar/4865918/bug4865918.java fails in CI
+Description:
+(no description)
+
+-----
+Title: [JDK-8350530] javax/swing/JScrollBar/4865918/bug4865918.java still fails in CI
+Description:
+(no description)
+
+-----
+Title: [JDK-8350670] javax/imageio/plugins/wbmp/WBMPStreamTruncateTest.java creates temp file in src dir
+Description:
+(no description)
+
+-----
+Title: [JDK-8350677] [TESTBUG] java/awt/Robot/ScreenCaptureRobotTest.java failing on macOS
+Description:
+(no description)
+
+-----
+Title: [JDK-8345496] Fix usages of jtreg-reserved properties
+Description:
+(no description)
+
+-----
+Title: [JDK-8345710] Update jdk/java/time/tck/java/time/TCKInstant.java now() to be more robust
+Description:
+(no description)
+
+-----
+Title: [JDK-8346416] Rearrange reachabilityFence()s in jdk.test.lib.util.ForceGC
+Description:
+(no description)
+
+-----
+Title: [JDK-8346631] Test java/nio/channels/Selector/WakeupNow.java failed
+Description:
+(no description)
+
+-----
+Title: [JDK-8346641] java/net/httpclient/PlainProxyConnectionTest.java failed: Unexpected connection count: 5
+Description:
+(no description)
+
+-----
+Title: [JDK-8348200] Update IANA Language Subtag Registry to Version 2024-11-19
+Description:
+(no description)
+
+-----
+Title: [JDK-8348340] Improve debuggability of test/jdk/java/net/Socket/CloseAvailable.java
+Description:
+(no description)
+
+-----
+Title: [JDK-8348397] Improve AnnotationFormatError message for duplicate annotation interfaces
+Description:
+(no description)
+
+-----
+Title: [JDK-8348676] (ch) java/nio/channels/AsynchronousSocketChannel/StressLoopback.java times out (aix)
+Description:
+(no description)
+
+-----
+Title: [JDK-8349830] java/io/File/createTempFile/SpecialTempFile.java fails on Windows Server 2025
+Description:
+(no description)
+
+-----
+Title: [JDK-8349947] [JMH] jdk.incubator.vector.SpiltReplicate fails NoClassDefFoundError
+Description:
+(no description)
+
+-----
+Title: [JDK-8349948] Replace usages of -mx and -ms in some tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8349998] (dc) java/nio/channels/DatagramChannel/InterruptibleOrNot.java fails with virtual thread factory
+Description:
+(no description)
+
+-----
+Title: [JDK-8350000] Test java/nio/channels/FileChannel/LoopingTruncate.java fails sometimes with IOException: There is not enough space on the disk
+Description:
+(no description)
+
+-----
+Title: [JDK-8350183] [aix] java/lang/ProcessHandle/InfoTest.java still fails: "reported cputime less than expected"
+Description:
+(no description)
+
+-----
+Title: [JDK-8350310] [ubsan] ProcessImpl_md.c:561:40: runtime error: applying zero offset to null pointer on macOS aarch64
+Description:
+(no description)
+
+-----
+Title: [JDK-8350684] HTTP/2 stream cancelImpl may leave subscriber registered
+Description:
+(no description)
+
+-----
+Title: [JDK-8352097] (tz) zone.tab update missed in 2025a backport
+Description:
+The zone.tab file was removed by JDK-8166983 in trunk and so was not updated as part of the original version of JDK-8347965.
+
+While the 24u backport did update zone.tab, the 21u backport - and subsequent backports to 17u, 11u & 8u based on this - did not,due to being based on the trunk backport.
+
+We should apply the zone.tab update to the 2025a updates in the upcoming April releases. Long-term, we should look at the possibility of backporting JDK-8166983 as tzdata is frequently updated and these files only in older JDK releases are likely to be missed.
+
+-----
+Title: [JDK-8354712] UpcallLinker::on_entry racingly clears pending exception with GC safepoints
+Description:
+(no description)
+
+-----
+Title: [JDK-8354713] ProgrammableUpcallHandler::on_entry/on_exit access thread fields from native
+Description:
+(no description)
+
+-----
+Title: [JDK-8345703] Test com/sun/jdi/InterruptHangTest.java failed: Thread was never interrupted during sleep
+Description:
+(no description)
+
+-----
+Title: [JDK-8346412] Test javax/management/remote/mandatory/notif/NotifReconnectDeadlockTest.java failed with NullPointerException
+Description:
+(no description)
+
+-----
+Title: [JDK-8347276] OperatingSystemMXBean.getSystemCpuLoad() throws NPE
+Description:
+(no description)
+
+-----
+Title: [JDK-8347588] Test com/sun/jmx/remote/NotificationMarshalVersions/TestSerializationMismatch.java fails
+Description:
+(no description)
+
+-----
+Title: [JDK-8348944] vmTestbase/nsk/jdwp/ThreadReference/ForceEarlyReturn/forceEarlyReturn002/forceEarlyReturn002.java timed out
+Description:
+(no description)
+
+-----
+Title: [JDK-8348953] Exceptions in javax/management DeadLockTest.java do not cause test failure
+Description:
+(no description)
+
+-----
+Title: [JDK-8349427] Remove unused JVMDITools test files
+Description:
+(no description)
+
+-----
+Title: [JDK-8349438] javax/management/remote/mandatory/connection/DeadLockTest.java failing with NoSuchObjectException: no such object in table
+Description:
+(no description)
+
+-----
+Title: [JDK-8350312] [macOS]: UnixOperatingSystem.c:67:40: runtime error: division by zero
+Description:
+(no description)
+
+-----
+Title: [JDK-8345494] JitTester: Implement temporary folder functionality
+Description:
+(no description)
+
+-----
+Title: [JDK-8345495] Add counting leading/trailing zero tests for Integer
+Description:
+(no description)
+
+-----
+Title: [JDK-8345508] PPC64: C1 unwind_handler fails to unlock synchronized methods with LM_MONITOR
+Description:
+(no description)
+
+-----
+Title: [JDK-8345771] PPC64: ObjectMonitor::_owner should be reset unconditionally in nmethod unlocking
+Description:
+(no description)
+
+-----
+Title: [JDK-8345866] jdk/jfr/startupargs/TestStartDuration.java should be marked as flagless
+Description:
+(no description)
+
+-----
+Title: [JDK-8345914] Misc crash dump improvements on more platforms after JDK-8294160
+Description:
+(no description)
+
+-----
+Title: [JDK-8294160] misc crash dump improvements
+Description:
+Try to recover and output meaningful information in more situations, such as:
+
+- when a pointer is in Method metadata memory range, but the memory is not committed
+
+- when we call a bad address
+
+When calling a bad address, we usually don't get a meaningful stack backtrace, but in many situations we can if we know where to find the caller information.
+
+-----
+Title: [JDK-8345915] Cleanup os::print_tos_pc on AIX
+Description:
+(no description)
+
+-----
+Title: [JDK-8345983] CompileBroker::possibly_add_compiler_threads excessively polls available memory
+Description:
+(no description)
+
+-----
+Title: [JDK-8346001] DSO created with -ffast-math breaks Java floating-point arithmetic
+Description:
+(no description)
+
+-----
+Title: [JDK-8346021] [REDO] Implement C2 VectorizedHashCode on AArch64
+Description:
+(no description)
+
+-----
+Title: [JDK-8346075] jcmd: Compiler.CodeHeap_Analytics cmd does not inform about missing aggregate
+Description:
+(no description)
+
+-----
+Title: [JDK-8346108] [21u][BACKOUT] 8337994: [REDO] Native memory leak when not recording any events
+Description:
+Backout the backport of 8337994 to 21u.
+
+We see failures of test/jdk/jdk/jfr/jvm/TestChunkIntegrity.java with slowdebug and fastdebug builds.
+
+The failure is well reproducible with the slowdebug build, but with faster binaries the test passes sometimes.
+
+In our nightly CI with high load the fastdebug build fails reliably.
+
+From the .jtr file of the testruns:
+
+Veryfying chunk: disassembled/recording_00.jfr 0
+
+Veryfying chunk: disassembled/recording_01.jfr 3338
+
+Veryfying chunk: disassembled/recording_02.jfr 9083
+
+One value null
+
+Value A: {
+
+type = N/A
+
+name = "bootstrap"
+
+}
+
+Value B: null
+
+Field classLoader doesn't match
+
+Value A: {
+
+type = N/A
+
+name = "bootstrap"
+
+}
+
+Value B: null
+
+Field type doesn't match
+
+Value A: {
+
+classLoader = null
+
+name = "jdk/internal/loader/ClassLoaders$AppClassLoader"
+
+package = {
+
+name = "jdk/internal/loader"
+
+module = {
+
+name = "java.base"
+
+version = "21.0.7-internal"
+
+location = "jrt:/java.base"
+
+classLoader = null
+
+}
+
+exported = true
+
+}
+
+modifiers = 10
+
+hidden = false
+
+}
+
+Value B: {
+
+classLoader = N/A
+
+name = "jdk/internal/loader/ClassLoaders$AppClassLoader"
+
+package = {
+
+name = "jdk/internal/loader"
+
+module = {
+
+name = "java.base"
+
+version = "21.0.7-internal"
+
+location = "jrt:/java.base"
+
+classLoader = N/A
+
+}
+
+exported = true
+
+}
+
+modifiers = 10
+
+hidden = false
+
+}
+
+Field classLoader doesn't match
+
+Value A: {
+
+type = jdk.internal.loader.ClassLoaders$AppClassLoader (classLoader = bootstrap)
+
+name = "app"
+
+}
+
+Value B: {
+
+type = jdk.internal.loader.ClassLoaders$AppClassLoader (classLoader = null)
+
+name = "app"
+
+}
+
+Field type doesn't match
+
+Value A: {
+
+classLoader = jdk.internal.loader.ClassLoaders$AppClassLoader (id = 3)
+
+name = "jdk/jfr/jvm/TestChunkIntegrity$ClassStressor"
+
+package = {
+
+name = "jdk/jfr/jvm"
+
+module = {
+
+name = N/A
+
+version = N/A
+
+location = N/A
+
+classLoader = jdk.internal.loader.ClassLoaders$AppClassLoader (id = 3)
+
+}
+
+exported = true
+
+}
+
+modifiers = 8
+
+hidden = false
+
+}
+
+Value B: {
+
+classLoader = jdk.internal.loader.ClassLoaders$AppClassLoader (id = 3)
+
+name = "jdk/jfr/jvm/TestChunkIntegrity$ClassStressor"
+
+package = {
+
+name = "jdk/jfr/jvm"
+
+module = {
+
+name = N/A
+
+version = N/A
+
+location = N/A
+
+classLoader = jdk.internal.loader.ClassLoaders$AppClassLoader (id = 3)
+
+}
+
+exported = true
+
+}
+
+modifiers = 8
+
+hidden = false
+
+}
+
+Field method doesn't match
+
+Value A: {
+
+type = jdk.jfr.jvm.TestChunkIntegrity$ClassStressor (classLoader = app)
+
+name = "stress"
+
+descriptor = "()V"
+
+modifiers = 4
+
+hidden = false
+
+}
+
+Value B: {
+
+type = jdk.jfr.jvm.TestChunkIntegrity$ClassStressor (classLoader = app)
+
+name = "stress"
+
+descriptor = "()V"
+
+modifiers = 4
+
+hidden = false
+
+}
+
+Array contents doesn't match
+
+Field frames doesn't match
+
+Value A: [Ljava.lang.Object;@16e87903
+
+Value B: [Ljava.lang.Object;@466281af
+
+Object A:
+
+Clazz {
+
+startTime = 01:26:04.779 (2024-12-12)
+
+clazz = jdk.jfr.jvm.TestChunkIntegrity$MyClass (classLoader = JFR TestClassLoader)
+
+eventThread = "Thread-1" (javaThreadId = 33)
+
+stackTrace = [
+
+jdk.jfr.jvm.TestChunkIntegrity$ClassStressor.stress() line: 272
+
+jdk.jfr.jvm.TestChunkIntegrity$StressThread.run() line: 75
+
+]
+
+}
+
+Object B:
+
+Clazz {
+
+startTime = 01:26:04.779 (2024-12-12)
+
+clazz = jdk.jfr.jvm.TestChunkIntegrity$MyClass (classLoader = JFR TestClassLoader)
+
+eventThread = "Thread-1" (javaThreadId = 33)
+
+stackTrace = [
+
+jdk.jfr.jvm.TestChunkIntegrity$ClassStressor.stress() line: 272
+
+jdk.jfr.jvm.TestChunkIntegrity$StressThread.run() line: 75
+
+]
+
+}
+
+----------System.err:(12/755)----------
+
+java.lang.AssertionError: Events don't match. Event number 0
+
+at jdk.jfr.jvm.TestChunkIntegrity.assertEventEquals(TestChunkIntegrity.java:174)
+
+at jdk.jfr.jvm.TestChunkIntegrity.main(TestChunkIntegrity.java:131)
+
+at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+
+at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+
+at com.sun.javatest.regtest.agent.MainWrapper$MainTask.run(MainWrapper.java:138)
+
+at java.base/java.lang.Thread.run(Thread.java:1583)
+
+JavaTest Message: Test threw exception: java.lang.AssertionError: Events don't match. Event number 0
+
+JavaTest Message: shutting down test
+
+STATUS:Failed.`main' threw exception: java.lang.AssertionError: Events don't match. Event number 0
+
+-----
+Title: [JDK-8346155] jdk/jfr/event/gc/stacktrace/TestParallelMarkSweepAllocationPendingStackTrace.java failed with "OutOfMemoryError: GC overhead limit exceeded"
+Description:
+(no description)
+
+-----
+Title: [JDK-8346191] Check return value of hcreate_r
+Description:
+(no description)
+
+-----
+Title: [JDK-8346286] Disable unstable check of ThreadsListHandle.sanity_vm ThreadList values
+Description:
+(no description)
+
+-----
+Title: [JDK-8346403] pthread_attr_init handle return value and destroy pthread_attr_t object
+Description:
+(no description)
+
+-----
+Title: [JDK-8346413] Redo fix for JDK-8284620
+Description:
+(no description)
+
+-----
+Title: [JDK-8284620] CodeBuffer may leak _overflow_arena
+Description:
+CodeBuffer is declared as StackObj, but it also has ResourceObj style new operator, to complicate thing further more, it has _overflow_arena that is C Heap allocated.
+
+When Stack allocated CodeBuffer owns _overflow_arena, it works fine, because its destructor frees _overflow_arena. But if resource allocated CodeBuffer owns _overflow_arena, the arena is leaked, because its destructor is never called.
+
+==1139627== 2,096 (96 direct, 2,000 indirect) bytes in 2 blocks are definitely lost in loss record 12,196 of 12,553
+
+==1139627==    at 0x484486F: malloc (vg_replace_malloc.c:381)
+
+==1139627==    by 0x5AE5B9E: malloc (os.cpp:656)
+
+==1139627==    by 0x5AE5B9E: os::malloc(unsigned long, MEMFLAGS, NativeCallStack const&) (os.cpp:632)
+
+==1139627==    by 0x527F216: AllocateHeap(unsigned long, MEMFLAGS, NativeCallStack const&, AllocFailStrategy::AllocFailEnum) (allocation.cpp:42)
+
+==1139627==    by 0x52887B8: Arena::operator new(unsigned long, MEMFLAGS) (arena.cpp:286)
+
+==1139627==    by 0x545E16E: CodeBuffer::create_patch_overflow() (codeBuffer.cpp:245)
+
+==1139627==    by 0x529A1BA: Label::add_patch_at(CodeBuffer*, int, char const*, int) (assembler.cpp:166)
+
+==1139627==    by 0x529ED05: Assembler::jcc(Assembler::Condition, Label&, bool) (assembler_x86.cpp:2320)
+
+==1139627==    by 0x5188724: jmpConUNode::emit(CodeBuffer&, PhaseRegAlloc*) const (x86_64.ad:12758)
+
+==1139627==    by 0x5B0759F: PhaseOutput::fill_buffer(CodeBuffer*, unsigned int*) (output.cpp:1681)
+
+==1139627==    by 0x548A7C1: Compile::Code_Gen() (compile.cpp:2858)
+
+==1139627==    by 0x548E7BC: Compile::Compile(ciEnv*, ciMethod*, int, Options, DirectiveSet*) (compile.cpp:849)
+
+==1139627==    by 0x53CD12F: C2Compiler::compile_method(ciEnv*, ciMethod*, int, bool, DirectiveSet*) (c2compiler.cpp:112)
+
+==1139627==    by 0x5496A03: CompileBroker::invoke_compiler_on_method(CompileTask*) (compileBroker.cpp:2294)
+
+==1139627==    by 0x54975FF: CompileBroker::compiler_thread_loop() (compileBroker.cpp:1967)
+
+==1139627==    by 0x5D496BD: JavaThread::thread_main_inner() (thread.cpp:1291)
+
+==1139627==    by 0x5D4F3AF: Thread::call_run() (thread.cpp:356)
+
+==1139627==    by 0x5AF0EA7: thread_native_entry(Thread*) (os_linux.cpp:706)
+
+==1139627==    by 0x4927B19: start_thread (pthread_create.c:443)
+
+==1139627==    by 0x49AB8E3: clone (clone.S:100)
+
+-----
+Title: [JDK-8346578] SA core file support is broken on macosx-x64 starting with macOS 12.x
+Description:
+(no description)
+
+-----
+Title: [JDK-8346647] The libjsig deprecation warning should go to stderr not stdout
+Description:
+(no description)
+
+-----
+Title: [JDK-8346808] Add jtreg test for large arrayCopy disjoint case.
+Description:
+(no description)
+
+-----
+Title: [JDK-8346809] C2 SuperWord: some additional PopulateIndex tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8346842] vmTestbase/nsk/stress/strace/strace015.java failed with 'Cannot read the array length because "<local4>" is null'
+Description:
+(no description)
+
+-----
+Title: [JDK-8347440] Use google test string comparison macros
+Description:
+(no description)
+
+-----
+Title: [JDK-8347579] [TESTBUG] Jtreg compiler/loopopts/superword/TestDependencyOffsets.java fails on 512-bit SVE
+Description:
+(no description)
+
+-----
+Title: [JDK-8347584] Improve heap walking API tests to verify correctness of field indexes
+Description:
+(no description)
+
+-----
+Title: [JDK-8347592] Normalize Random usage by incubator vector tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8347593] compiler/codecache/CheckSegmentedCodeCache.java fails
+Description:
+(no description)
+
+-----
+Title: [JDK-8348058] com/sun/tools/attach/BasicTests.java does not verify AgentLoadException case
+Description:
+(no description)
+
+-----
+Title: [JDK-8348061] Remove all code for  nsk.share.Log verbose mode
+Description:
+(no description)
+
+-----
+Title: [JDK-8348329] test_nmt_locationprinting.cpp broken in the gcc windows build
+Description:
+(no description)
+
+-----
+Title: [JDK-8348395] Epsilon: Demote heap size and AlwaysPreTouch warnings to info level
+Description:
+(no description)
+
+-----
+Title: [JDK-8348946] GTest needs larger combination limit
+Description:
+(no description)
+
+-----
+Title: [JDK-8348952] ASAN reports use-after-free in DirectivesParserTest.empty_object_vm
+Description:
+(no description)
+
+-----
+Title: [JDK-8349045] java/util/zip/EntryCount64k.java failing with java.lang.RuntimeException: '\\A\\Z' missing from stderr
+Description:
+(no description)
+
+-----
+Title: [JDK-8349430] Two CDS tests fail with -UseCompressedOops and UseSerialGC/UseParallelGC
+Description:
+(no description)
+
+-----
+Title: [JDK-8349453] [AIX] Beginning with AIX 7.3 TL1 mmap() supports 64K memory pages
+Description:
+(no description)
+
+-----
+Title: [JDK-8349640] Update failure handler to don't generate Error message if cores actions are empty
+Description:
+(no description)
+
+-----
+Title: [JDK-8349856] [testsuite] NeverActAsServerClassMachine breaks TestPLABAdaptToMinTLABSize.java TestPinnedHumongousFragmentation.java TestPinnedObjectContents.java
+Description:
+(no description)
+
+-----
+Title: [JDK-8349983] AArch64: Build failure with clang due to -Wformat-nonliteral warning
+Description:
+(no description)
+
+-----
+Title: [JDK-8350002] [ubsan] logSelection.cpp:154:24  / logSelectionList.cpp:72:94 : runtime error: applying non-zero offset 1 to null pointer
+Description:
+(no description)
+
+-----
+Title: [JDK-8350191] Linux ppc64le with toolchain clang - detection failure in early JVM startup
+Description:
+(no description)
+
+-----
+Title: [JDK-8350291] Virtual Threads: exclude 2 tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8350311] [ubsan] logOutput.cpp:357:21: runtime error: applying non-zero offset 1 to null pointer
+Description:
+(no description)
+
+-----
+Title: [JDK-8350527] gc/TestDisableExplicitGC.java fails due to unexpected CodeCache GC
+Description:
+(no description)
+
+-----
+Title: [JDK-8350528] Add more linesize for MIME decoder in macro bench test Base64Decode
+Description:
+(no description)
+
+-----
+Title: [JDK-8350658] Adjust exception No type named <ThreadType> in database
+Description:
+(no description)
+
+-----
+Title: [JDK-8345370] Bump update version for OpenJDK: jdk-21.0.7
+Description:
+Development of update 21.0.7 starts in repository jdk21u-dev on Wednesday December 4th, 2024. The first change should be to bump the version.
+
+Release of 21.0.7 is planned for Tuesday April 15th, 2025.
+
+For the date, see also https://wiki.openjdk.org/display/JDKUpdates/JDK%2021u or https://www.oracle.com/security-alerts/
+
+-----
+Title: [JDK-8346266] [macos] [build]: install-file macro may run into permission denied error
+Description:
+(no description)
+
+-----
+Title: [JDK-8346267] Make target mac-jdk-bundle fails on chmod command
+Description:
+(no description)
+
+-----
+Title: [JDK-8346617] GHA: Collect hs_errs from build time failures
+Description:
+(no description)
+
+-----
+Title: [JDK-8346618] GHA: Report truncation is broken after JDK-8341424
+Description:
+(no description)
+
+-----
+Title: [JDK-8341424] GHA: Collect hs_errs from build time failures
+Description:
+GHA conveniently collects hs_errs from the test job runs. However, when we have a failure during the build, e.g. javac, CDS, jmod, jlink crashes the VM, we don't have this visibility. We can add the hooks for these as well.
+
+-----
+Title: [JDK-8347403] GHA: Build JTReg in single step
+Description:
+(no description)
+
+-----
+Title: [JDK-8349426] Timeout handler on Windows takes 2 hours to complete
+Description:
+(no description)
+
+-----
+Title: [JDK-8349603] [21u, 17u, 11u] Update GHA JDKs after Jan/25 updates
+Description:
+Time to bump GHA JDKs.
+
+-----
+Title: [JDK-8348067] Fix and rewrite sun/security/x509/DNSName/LeadingPeriod.java test
+Description:
+(no description)
+
+-----
+Title: [JDK-8349986] Serialization considerations
+Description:
+(no description)
+
+-----
+Title: [JDK-8350671] Test javax/net/ssl/SSLSocket/Tls13PacketSize.java failed with java.net.SocketException: An established connection was aborted by the software in your host machine
+Description:
+(no description)
+
+-----
+Title: [JDK-8347583] RuntimePackageTest.testUsrInstallDir test fails on Linux
+Description:
+(no description)
+
+-----
+Title: [JDK-8347644] Remove unused imports from `ModuleGenerator` test file
+Description:
+(no description)
+
+-----
+Title: [JDK-8347877] With malformed --app-image the error messages are awful
+Description:
+(no description)
+
+-----
+Title: [JDK-8349996] BasicAnnoTests doesn't handle multiple annotations at the same position
+Description:
+(no description)
+
+-----
+Title: [JDK-8350568] Upgrade JLine to 3.26.1
+Description:
+(no description)
+
+-----
+Title: [JDK-8353904] [21u] Remove designator DEFAULT_PROMOTED_VERSION_PRE=ea for release 21.0.7
+Description:
+As discussed in https://github.com/openjdk/jdk17u-dev/pull/307, we'd like to have DEFAULT_PROMOTED_VERSION_PRE set to 'ea' in dev source trees and remove it for GA tagged source levels.
+
+-----
+Title: [JDK-8345497] Normalize string with locale invariant `toLowerCase()`
+Description:
+(no description)
+
+-----
+Title: [JDK-8345709] Logs truncated in test javax/net/ssl/DTLS/DTLSRehandshakeTest.java
+Description:
+(no description)
+
+-----
+Title: [JDK-8346421] Update PKCS#11 Cryptographic Token Interface to v3.1
+Description:
+(no description)
+
+-----
+Title: [JDK-8346634] test/jdk/sun/security/tools/jarsigner/PreserveRawManifestEntryAndDigest.java can fail due to regex
+Description:
+(no description)
+
+-----
+Title: [JDK-8346077] test/jdk/tools/jpackage/share/ServiceTest.java test fails
+Description:
+(no description)
+
+-----
+Title: [JDK-8346078] Remove `--compress` from jlink command lines from jpackage tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8346187] tools/jpackage/windows/Win8282351Test.java fails with java.lang.AssertionError: Expected [0]. Actual [1618]:
+Description:
+(no description)
+
+-----
+Title: [JDK-8346428] Move common properties from jpackage jtreg test declarations to TEST.properties file
+Description:
+(no description)
+
+-----
+Title: [JDK-8346577] tools/jpackage/windows/Win8301247Test.java fails on localized Windows platform
+Description:
+(no description)
+
+-----
+Title: [JDK-8346698] Clean up return code handling for pthread calls in library coding
+Description:
+(no description)
+
+-----
+Title: [JDK-8346814] Rework BasicTest.testTemp test cases
+Description:
+(no description)
+
+-----
+Title: [JDK-8346857] jpackage test helper function incorrectly removes a directory instead of its contents only
+Description:
+(no description)
+
+-----
+Title: [JDK-8347012] Move jpackage tests from "jdk.jpackage.tests" package to the default package
+Description:
+(no description)
+
+-----
+Title: [JDK-8347100] Use OperatingSystem, Architecture, and OSVersion in jpackage tests
+Description:
+(no description)
+
+-----
+Title: [JDK-8347317] Improve test coverage for class loading elements with annotations of different retentions
+Description:
+(no description)
+
+-----
+Title: [JDK-8347580] jpackage tests run osx-specific checks on windows and linux
+Description:
+(no description)
+
+-----
+Title: [JDK-8354710] Clean up the code in sun.tools.jar.Main to properly close resources and use ZipFile during extract
+Description:
+(no description)
+
+-----
+Title: [JDK-8347892] Use latch in BasicMenuUI/bug4983388.java instead of delay
+Description:
+(no description)
+
+-----
+Title: [JDK-8347587] Update code gen in CallGeneratorHelper
+Description:
+(no description)
+
+-----
+Title: [JDK-8345498] Cleanups and JUnit conversion of test/jdk/java/util/zip/Available.java
+Description:
+(no description)
+
+-----
+Title: [JDK-8349432] failure_handler should execute gdb "info threads" command on linux
+Description:
+(no description)
+

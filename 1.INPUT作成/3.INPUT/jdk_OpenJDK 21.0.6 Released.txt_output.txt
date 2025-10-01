@@ -1,0 +1,1000 @@
+Title: [JDK-8296787] Unify debug printing format of X.509 cert serial numbers
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: The JDK debug libraries print X.509 certificate serial numbers in 3 different formats. We should unify on one format.
+e.g.
+==============
+certpath: X509CertSelector.match(SN: 83be056904246b1a1756ac95991c74a
+Issuer: CN=DigiCert Global Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US
+Subject: CN=DigiCert Global Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US)
+certpath: X509CertSelector.match returning: true
+certpath: YES - try this trustedCert
+certpath: Constraints.permits(): RSA, [
+Variant: tls server
+Anchor: [
+Trusted CA cert: [
+[
+Version: V3
+Subject: CN=DigiCert Global Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US
+Signature Algorithm: SHA1withRSA, OID = 1.2.840.113549.1.1.5
+Key:  Sun RSA public key, 2048 bits
+params: null
+modulus: 28559384442792876273280274398620578979733786817784174960112400169719065906301471912340204391164075730987771255281479191858503912379974443363319206013285922932969143082114108995903507302607372164107846395526169928849546930352778612946811335349917424469188917500996253619438384218721744278787164274625243781917237444202229339672234113350935948264576180342492691117960376023738627349150441152487120197333042448834154779966801277094070528166918968412433078879939664053044797116916260095055641583506170045241549105022323819314163625798834513544420165235412105694681616578431019525684868803389424296613694298865514217451303
+public exponent: 65537
+Validity: [From: Fri Nov 10 00:00:00 UTC 2006,
+To: Mon Nov 10 00:00:00 UTC 2031]
+Issuer: CN=DigiCert Global Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US
+SerialNumber: [    083be056 904246b1 a1756ac9 5991c74a]
+Certificate Extensions: 4
+[1]: ObjectId: 2.5.29.35 Criticality=false
+AuthorityKeyIdentifier [
+KeyIdentifier [
+0000: 03 DE 50 35 56 D1 4C BB   66 F0 A3 E2 1B 1B C3 97  ..P5V.L.f.......
+0010: B2 3D D1 55                                        .=.U
+]
+"certificate" : {
+"version"            : "v3",
+"serial number"      : "083BE056904246B1A1756AC95991C74A",
+"signature algorithm": "SHA1withRSA",
+"issuer"             : "CN=DigiCert Global Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US",
+"not before"         : "2006-11-10 24:00:00.000 UTC",
+"not  after"         : "2031-11-10 24:00:00.000 UTC",
+"subject"            : "CN=DigiCert Global Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US",
+"subject public key" : "RSA",
+"extensions"         : [
+==============
+one cert - 3 styles of serial number :
+SN: 83be056904246b1a1756ac95991c74a
+SerialNumber: [    083be056 904246b1 a1756ac9 5991c74a]
+"serial number"      : "083BE056904246B1A1756AC95991C74A",
+It would help with debug log checks.
+OS: generic
+
+-----
+Title: [JDK-8308429] jvmti/StopThread/stopthrd007 failed with "NoClassDefFoundError: Could not initialize class jdk.internal.misc.VirtualThreads"
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: The following test failed in the JDK21 CI:
+vmTestbase/nsk/jvmti/StopThread/stopthrd007/TestDescription.java
+Here's a snippet from the log file:
+#section:main
+----------messages:(8/397)----------
+command: main -agentlib:stopthrd007=-waittime=5 nsk.jvmti.StopThread.stopthrd007
+reason: User specified action: run main/othervm/native -agentlib:stopthrd007=-waittime=5 nsk.jvmti.StopThread.stopthrd007
+started: Fri May 19 03:02:45 UTC 2023
+Mode: othervm [/othervm specified]
+Timeout information:
+--- Timeout information end.
+finished: Fri May 19 03:11:49 UTC 2023
+elapsed time (seconds): 544.51
+----------configuration:(0/0)----------
+----------System.out:(1/26)----------
+Timeout refired 480 times
+----------System.err:(11/1002)----------
+Exception in thread "DebuggeeWaitingThread" Exception in thread "DebuggeeSleepingThread" Exception in thread "DebuggeeRunningThread" java.lang.ThreadDeath
+java.lang.NoClassDefFoundError: Could not initialize class jdk.internal.misc.VirtualThreads
+at java.base/java.util.concurrent.locks.LockSupport.unpark(LockSupport.java:179)
+at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.signalNext(AbstractQueuedSynchronizer.java:645)
+at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.release(AbstractQueuedSynchronizer.java:1060)
+at java.base/java.util.concurrent.locks.ReentrantLock.unlock(ReentrantLock.java:494)
+at nsk.share.Wicket.unlock(Wicket.java:226)
+at nsk.jvmti.StopThread.stopthrd007ThreadRunning.run(stopthrd007.java:195)
+Caused by: java.lang.ExceptionInInitializerError: Exception java.lang.ThreadDeath [in thread "DebuggeeRunningThread"]
+Exception: java.lang.NoClassDefFoundError thrown from the UncaughtExceptionHandler in thread "DebuggeeRunningThread"
+----------rerun:(42/8469)*----------
+
+-----
+Title: [JDK-8316428] G1: Nmethod count statistics only count last code root set iterated
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: G1 Nmethod count statistics is wrong, only counting the count of the last code root set iterated.
+
+-----
+Title: [JDK-8318105] [jmh] the test java.security.HSS failed with 2 active threads
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: The test micro/org/openjdk/bench/java/security/HSS.java failed with log:
+java.lang.RuntimeException
+at org.openjdk.bench.java.security.HSS.verify(HSS.java:105)
+for runs with 2+ threads.
+OS: generic
+
+-----
+Title: [JDK-8319960] RISC-V: compiler/intrinsics/TestInteger/LongUnsignedDivMod.java failed with "counts: Graph contains wrong number of nodes"
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: After JDK-8318224， compiler/intrinsics/TestInteger/LongUnsignedDivMod.java failed with "counts: Graph contains wrong number of nodes"
+
+-----
+Title: [JDK-8319973] AArch64: Save and restore FPCR in the call stub
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: On AArch64 we don't save and restore the default floating-point control state when we enter and leave Java code. We really should, because if we're called via the JNI invocation interface with a weird FP control state we'll not be Java compatible.
+OS: generic
+
+-----
+Title: [JDK-8320192] SHAKE256 does not work correctly if n >= 137
+Priority: P3
+Type: Bug
+Component: security-libs
+Description: The internal SHAKE256 class fails the NIST CAVP test when n reaches 137. The following program succeeds in the 1st check but fails the 2nd one.
+import sun.security.provider.SHAKE256;
+import java.util.Arrays;
+import java.util.HexFormat;
+public class A2 {
+public static void main(String[] args) throws Exception {
+//https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/sha3/shakebytetestvectors.zip
+//SHAKE256VariableOut.rsp:
+//3380: COUNT = 674
+//3381: Outputlen = 1088
+//3382: Msg = 6ae23f058f0f2264a18cd609acc26dd4dbc00f5c3ee9e13ecaea2bb5a2f0bb6b
+//3383: Output = b9b92544fb25cfe4ec6fe437d8da2bbe00f7bdaface3de97b8775a44d753c3adca3f7c6f183cc8647e229070439aa9539ae1f8f13470c9d3527fffdeef6c94f9f0520ff0c1ba8b16e16014e1af43ac6d94cb7929188cce9d7b02f81a2746f52ba16988e5f6d93298d778dfe05ea0ef256ae3728643ce3e29c794a0370e9ca6a8bf3e7a41e8677067
+//3384:
+//3385: COUNT = 675
+//3386: Outputlen = 1096
+//3387: Msg = 8d8001e2c096f1b88e7c9224a086efd4797fbf74a8033a2d422a2b6b8f6747e4
+//3388: Output = 2e975f6a8a14f0704d51b13667d8195c219f71e6345696c49fa4b9d08e9225d3d39393425152c97e71dd24601c11abcfa0f12f53c680bd3ae757b8134a9c10d429615869217fdd5885c4db174985703a6d6de94a667eac3023443a8337ae1bc601b76d7d38ec3c34463105f0d3949d78e562a039e4469548b609395de5a4fd43c46ca9fd6ee29ada5e
+var s = new SHAKE256(1088/8);
+var msg = HexFormat.of().parseHex("6ae23f058f0f2264a18cd609acc26dd4dbc00f5c3ee9e13ecaea2bb5a2f0bb6b");
+var output = HexFormat.of().parseHex("b9b92544fb25cfe4ec6fe437d8da2bbe00f7bdaface3de97b8775a44d753c3adca3f7c6f183cc8647e229070439aa9539ae1f8f13470c9d3527fffdeef6c94f9f0520ff0c1ba8b16e16014e1af43ac6d94cb7929188cce9d7b02f81a2746f52ba16988e5f6d93298d778dfe05ea0ef256ae3728643ce3e29c794a0370e9ca6a8bf3e7a41e8677067");
+s.update(msg, 0, msg.length);
+if (!Arrays.equals(s.digest(), output)) {
+throw new RuntimeException();
+}
+s = new SHAKE256(1096/8);
+msg = HexFormat.of().parseHex("8d8001e2c096f1b88e7c9224a086efd4797fbf74a8033a2d422a2b6b8f6747e4");
+output = HexFormat.of().parseHex("2e975f6a8a14f0704d51b13667d8195c219f71e6345696c49fa4b9d08e9225d3d39393425152c97e71dd24601c11abcfa0f12f53c680bd3ae757b8134a9c10d429615869217fdd5885c4db174985703a6d6de94a667eac3023443a8337ae1bc601b76d7d38ec3c34463105f0d3949d78e562a039e4469548b609395de5a4fd43c46ca9fd6ee29ada5e");
+s.update(msg, 0, msg.length);
+if (!Arrays.equals(s.digest(), output)) {
+throw new RuntimeException();
+}
+}
+}
+BTW, when n  200, the state buffer in SHA3.java does not have enough bytes and the last line of implDigest() throws an exception. It probably needs to squeeze multiple times to fullfill the output.
+
+-----
+Title: [JDK-8320575] generic type information lost on mandated parameters of record's compact constructors
+Priority: P3
+Type: Bug
+Component: core-libs
+Description: ADDITIONAL SYSTEM INFORMATION :
+Tested on MacBook Pro M2, Ventura 13.4
+Java 21.0.1
+A DESCRIPTION OF THE PROBLEM :
+When, via reflection, trying to determine the generic type of an argument of the default record constructor,
+the generic type cannot be determined in Java 21.
+This did work in pre 21 versions. Tested in 17.0.9.
+REGRESSION : Last worked in version 17.0.9
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+Run provided test case.
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+Expect generic type to be available in the default record constructor.
+ACTUAL -
+No generic type information available.
+---------- BEGIN SOURCE ----------
+import java.util.Optional;
+public class Reproducer {
+interface NoConstructorDeclarations {
+record Person(Optional name, Optional age) {}
+}
+interface AnnotatedCompactConstructor {
+record Person(Optional name, Optional age) {
+@Deprecated public Person {}
+}
+}
+interface AnotatedExplicitCanonicalConstructor  {
+record Person(Optional name, Optional age) {
+@Deprecated
+public Person(Optional name, Optional age) {
+this.name = name;
+this.age = age;
+}
+}
+}
+public static void main(String args[]) {
+for(var approach: Reproducer.class.getDeclaredClasses()) {
+Class recordClass = approach.getClasses()[0];
+System.out.println(approach.getSimpleName());
+var constructor = recordClass.getConstructors()[0];
+System.out.println(constructor.isAnnotationPresent(Deprecated.class));
+for(var p: constructor.getParameters()) {
+System.out.println(p);
+}
+System.out.println();
+}
+}
+}
+---------- END SOURCE ----------
+CUSTOMER SUBMITTED WORKAROUND :
+Explicitly add a canonical constructor with all record properties.
+FREQUENCY : always
+OS: generic
+
+-----
+Title: [JDK-8320673] PageFormat/CustomPaper.java has no Pass/Fail buttons; multiple instructions
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The test/jdk/java/awt/print/PageFormat/CustomPaper.java test displays instructions but there's no Pass/Fail buttons. As soon as you close the Print dialog (after selecting the file if printing to PDF), the UI disappears — there's no way for the tester to fail the test.
+The instructions reference two different bugs which require different actions from the tester. As such, the test must be run twice and display different instructions, it can be achieved by having multiple blocks with `@test` tag.
+
+-----
+Title: [JDK-8320892] AArch64: Restore FPU control state after JNI
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: Some buggy libraries corrupt the floating-point control register. Provide something similar to the x86 RestoreMXCSROnJNICalls.
+OS: generic
+
+-----
+Title: [JDK-8321299] runtime/logging/ClassLoadUnloadTest.java doesn't reliably trigger class unloading
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: runtime/logging/ClassLoadUnloadTest.java doesn't trigger unloading of test.Empty class.
+The test accidentally pass due to an unrelated class being unloaded:
+$ java ... -Xlog:class+unload=info ... ClassLoadUnloadTest\$ClassUnloadTestMain
+[0.113s][info][class,unload] unloading class java.lang.invoke.LambdaForm$MH/0x000007c001002000 0x000007c001002000
+
+-----
+Title: [JDK-8321543] Update NSS to version 3.96
+Priority: P3
+Type: Bug
+Component: security-libs
+Description: This will be released on 12/14/2023
+https://wiki.mozilla.org/NSS:Release_Versions
+
+-----
+Title: [JDK-8322809] SystemModulesMap::classNames and moduleNames arrays do not match the order
+Priority: P3
+Type: Bug
+Component: tools
+Description: A DESCRIPTION OF THE PROBLEM :
+I have a java-project that is build as module. The name of the module starts with "com" (e.g. com.project). This module has a dependency to jdk.httpserver. When I run the compiled jar with java command, then everything works fine. But when I build a runtime image with jlink and try to start that one, I get an error ("Module com.project not in boot Layer").
+If I change the module name to not start with "com" (e.g. org.project) or remove the dependency to jdk.httpserver or use Java 17, then the runtime image created by jlink works fine.
+REGRESSION : Last worked in version 17.0.9
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+Create a java project with a starter class (com.project.Starter) containing the main method.
+Add module-info.java and name your project "com.project" and add dependency to "jdk.httpserver".
+Compile the project.
+Use jlink to build a runtime image:
+jlink --module-path "c:\\jmods;out" --add-modules com.project --launcher starter=com.project/com.project.Starter --output image
+Execute image/bin/starter.bat and you will get an exception: "Module com.project not in boot Layer"
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+Running application (no exception)
+ACTUAL -
+java.lang.InternalError: Module com.project not in boot Layer
+---------- BEGIN SOURCE ----------
+##Starter##
+package com.project;
+public class Starter {
+public static void main(String[] args) {
+System.out.println("Hello world");
+}
+}
+##module-info.java##
+module com.project {
+requires jdk.httpserver;
+}
+---------- END SOURCE ----------
+CUSTOMER SUBMITTED WORKAROUND :
+renaming module to not start with "com"
+FREQUENCY : always
+OS: generic
+
+-----
+Title: [JDK-8323562] SaslInputStream.read() may return wrong value
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: The "com.sun.jndi.ldap.sasl.SaslInputStream" class has this code:
+public int read() throws IOException {
+byte[] inBuf = new byte[1];
+int count = read(inBuf, 0, 1);
+if (count  0) {
+return inBuf[0];
+} else {
+return -1;
+}
+}
+SaslInputStream.read() should return a value in the range from 0 to 255 per the spec of InputStream.read() but it returns the signed byte from the inBuf as is.
+OS: generic
+
+-----
+Title: [JDK-8323688] C2: Fix UB of jlong overflow in PhaseIdealLoop::is_counted_loop()
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: The computation of `final_correction` in `is_counted_loop()` could overflow which is UB. I don't think that any compiler would produce a wrong result. But we should still fix this UB.
+
+-----
+Title: [JDK-8324841] PKCS11 tests still skip execution
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: Since JDK-8313206, the PKCS11 tests throw SkipException if they can't find NSS library. This is fine in the default case where no NSS library was provided. However, in cases where we expect the library to be found (like when using JIB or when path to NSS is explicitly specified on the command line via -Djdk.test.lib.artifacts.nsslib-linux_x64), failure to find NSS should be treated as an error.
+Additionally, the test framework adds nss/lib suffix to the provided jdk.test.lib.artifacts.nsslib-linux_x64 parameter; this is unexpected, and makes testing with platform libnss3 harder than necessary.
+(Also, since JDK-8295343 the test does not work with system NSS libraries on Ubuntu 20.04/22.04. On these systems the library was located in /usr/lib/x86_64-linux-gnu/nss/, which was removed from the search path. But that might be a separate issue.)
+
+-----
+Title: [JDK-8324861] Exceptions::wrap_dynamic_exception() doesn't have ResourceMark
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: Exceptions::wrap_dynamic_exception() don't have ResourceMark in the logging path
+diff:
+diff --git a/src/hotspot/share/utilities/exceptions.cpp b/src/hotspot/share/utilities/exceptions.cpp
+index bca6837ee13..a1c5b868481 100644
+--- a/src/hotspot/share/utilities/exceptions.cpp
++++ b/src/hotspot/share/utilities/exceptions.cpp
+@@ -433,6 +433,7 @@ void Exceptions::wrap_dynamic_exception(bool is_indy, JavaThread* THREAD) {
+// Pass through an Error, including BootstrapMethodError, any other form
+// of linkage error, or say OutOfMemoryError
+if (ls != nullptr) {
++        ResourceMark rm(THREAD);
+ls-print_cr("bootstrap method invocation wraps BSME around " PTR_FORMAT, p2i(exception));
+exception-print_on(ls);
+}
+@@ -441,6 +442,7 @@ void Exceptions::wrap_dynamic_exception(bool is_indy, JavaThread* THREAD) {
+// Otherwise wrap the exception in a BootstrapMethodError
+if (ls != nullptr) {
++      ResourceMark rm(THREAD);
+ls-print_cr("%s throws BSME for " PTR_FORMAT, is_indy ? "invokedynamic" : "dynamic constant", p2i(exception));
+exception-print_on(ls);
+}
+
+-----
+Title: [JDK-8325203] System.exit(0) kills the launched 3rd party application
+Priority: P3
+Type: Bug
+Component: tools
+Description: ADDITIONAL SYSTEM INFORMATION :
+Windows 11,
+openjdk version "21.0.2" 2024-01-16 LTS
+OpenJDK Runtime Environment Temurin-21.0.2+13 (build 21.0.2+13-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.2+13 (build 21.0.2+13-LTS, mixed mode, sharing)
+A DESCRIPTION OF THE PROBLEM :
+Hi there,
+my Java app experienced a very weird regression when switching from JDK
+OpenJDK21U-jdk_x64_windows_hotspot_21.0.1_12
+to
+OpenJDK21U-jdk_x64_windows_hotspot_21.0.2_13
+This small snippet should start a third party software (in this case Notepad++.exe but it's just an example) and after 30 seconds, close the java app that launched it.
+public static void main(String... args) throws IOException {
+String[] cmdToRunUsingArgs = {"cmd.exe", "/C", "C:\\Program Files\\Notepad++\\notepad++.exe"};
+Runtime.getRuntime().exec(cmdToRunUsingArgs);
+Executors.newSingleThreadScheduledExecutor().schedule(() - {
+System.exit(0);
+}, 30, TimeUnit.SECONDS);
+}
+It works well with all previous JDK versions but it stopped working from java 21.0.2 and later.
+With java 21.0.1, the program launches the third party app correcly, after 30 seconds, it kills itself by leaving the third app running.
+With java 21.0.2, the program launches the third party app correcly, after 30 seconds, it kills itself AND the third party app.
+This makes even impossible to restart a java app from the app itself.
+REGRESSION : Last worked in version 17.0.10
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+Run the code snippet from a JAR file not in an IDE!
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+The program should run a third party software and then close itself leaving the third party software running.
+ACTUAL -
+The program kills both the third party software and itself.
+---------- BEGIN SOURCE ----------
+public static void main(String... args) throws IOException {
+String[] cmdToRunUsingArgs = {"cmd.exe", "/C", "C:\\Program Files\\Notepad++\\notepad++.exe"};
+Runtime.getRuntime().exec(cmdToRunUsingArgs);
+Executors.newSingleThreadScheduledExecutor().schedule(() - {
+System.exit(0);
+}, 30, TimeUnit.SECONDS);
+}
+---------- END SOURCE ----------
+CUSTOMER SUBMITTED WORKAROUND :
+no workaround found
+FREQUENCY : always
+OS: windows_10
+
+-----
+Title: [JDK-8325851] Hide PassFailJFrame.Builder constructor
+Priority: P5
+Type: Bug
+Component: client-libs
+Description: The PassFailJFrame.Builder class provides a way to configure the parameters of PassFailJFrame in a set of chained method calls.
+The Builder class is public and has public constructor. At the same time, a better design would be to hide all the Builder constructors and rely on the builder() method which returns an instance of the Builder.
+At the same time, the builder() helper wasn't available until JDK-8294156 which was integrated in October 2023 whereas the Builder class became available with JDK-8294535 in August 2023.
+For this reason, there are 20 tests which create the PassFailJFrame.Builder object using its constructor instead of the helper method. These tests have to be updated.
+To find these tests, run:
+grep -r 'new PassFailJFrame.Builder' test/jdk
+Hiding the PassFailJFrame.Builder constructor is a better design choice. New tests should not create the builder using the `new` keyword. To enforce it, the Builder constructor needs to be private.
+
+-----
+Title: [JDK-8327924] Simplify TrayIconScalingTest.java
+Priority: P5
+Type: Bug
+Component: client-libs
+Description: The test/jdk/java/awt/TrayIcon/TrayIconScalingTest.java test uses PassFailJFrame and combines builder and positioning of the windows. Previously, calling PassFailJFrame.positionTestWindow was required to show the instructions; now the instructions are shown automatically after build() is called on the builder.
+Moreover, using PassFailJFrame.positionTestWindow moves the instructions to the left of the screen. Since there's no test UI, the instructions could and should remain centered.
+
+-----
+Title: [JDK-8328021] Convert applet test java/awt/List/SetFontTest/SetFontTest.html to main program
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: java/awt/List/SetFontTest/SetFontTest.html  is a manual applet-based test.
+It can be converted to a main program test using PassFailJFrame
+
+-----
+Title: [JDK-8328379] Convert URLDragTest.html applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert awt/dnd/URLDragTest.html applet test to main using PassFailJFrame.
+OS: generic
+
+-----
+Title: [JDK-8328665] serviceability/jvmti/vthread/PopFrameTest failed with a timeout
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: The test serviceability/jvmti/vthread/PopFrameTest/PopFrameTest.java#no-vmcontinuations resulted in test timeout after 480 secs.
+This bug is a copy of the JDK-8327781 as it was created as a confidential by accident. The JDK-8327781 is closed as dup.
+
+-----
+Title: [JDK-8330278] Have SSLSocketTemplate.doClientSide use loopback address
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: SSLSocketTemplate currently defaults to using the localhost address. Using the loopback address by default may prove more reliable for some test configurations.
+e.g. see https://github.com/openjdk/jdk/pull/2405
+similar changes may be possible for the TLSBase test class
+
+-----
+Title: [JDK-8331393] AArch64: u32 _partial_subtype_ctr loaded/stored as 64
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: We should store/load as proper sized.
+https://github.com/openjdk/jdk/blob/60b61e588c1252b4b1fbc64d0f818a85670f7146/src/hotspot/cpu/aarch64/macroAssembler_aarch64.cpp#L1565
+
+-----
+Title: [JDK-8332724] x86 MacroAssembler may over-align code
+Priority: P5
+Type: Bug
+Component: hotspot
+Description: The functions align32 and align64 are supposed to align the code to 32 or 64 bytes, by adding the minimal number of NOP bytes that is required to align the code.
+The target is explicitly cast to unsigned long long, but then it's passed to a method that accepts a signed int. If the target happens to be negative, we will generate 32 / 64 NOP bytes too many.
+
+-----
+Title: [JDK-8333235] vmTestbase/nsk/jdb/kill/kill001/kill001.java fails with C1
+Priority: P4
+Type: Bug
+Component: core-svc
+Description: Test
+vmTestbase/nsk/jdb/kill/kill001/kill001.java
+fails with
+-Xcomp -ea -esa -XX:CompileThreshold=100 -XX:+UnlockExperimentalVMOptions -XX:TieredStopAtLevel=3 (1,2,3)
+See log in comments.
+
+-----
+Title: [JDK-8333754] Add a Test against ECDSA and ECDH NIST Test vector
+Priority: P3
+Type: Bug
+Component: security-libs
+
+-----
+Title: [JDK-8333824] Unused ClassValue in VarHandles
+Priority: P5
+Type: Bug
+Component: core-libs
+Description: VarHandles defines the static ClassValue ADDRESS_FACTORIES, which appears to be completely unused. Likely a leftover.
+
+-----
+Title: [JDK-8334560] [PPC64]: postalloc_expand_java_dynamic_call_sched does not copy all fields
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: postalloc_expand_java_dynamic_call_sched should copy also MachSafePointNode::_has_ea_local_in_scope
+If the information is not propagated then it can happen that C2 optimizations based on escape analysis are not reverted when an object reference escapes because an JVMTI agent reads it.
+OS: generic
+
+-----
+Title: [JDK-8335142] compiler/c1/TestTraceLinearScanLevel.java occasionally times out with -Xcomp
+Priority: P5
+Type: Bug
+Component: hotspot
+Description: compiler/c1/TestTraceLinearScanLevel is occasionally timing out on macosx-x64 when running with -Xcomp.
+The test's purpose is to sanity check the TraceLinearScanLevel flag with a hello world like test. It runs with -XX:TestTraceLinearScanLevel=4 which prints quite a lot of data. It becomes even more when running with -Xcomp. Since we only want to sanity check, there is not much benefit in running this test with -Xcomp which only unnecessarily increases the time to run this test.
+I suggest to exclude this test with -Xcomp but instead add -Xbatch to at least wait until all the C2 compilations are finished in the start-up.
+
+-----
+Title: [JDK-8335172] Add manual steps to run security/auth/callback/TextCallbackHandler/Password.java test
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: The test com/sun/security/auth/callback/TextCallbackHandler/Password.java is in the problem list, but it is not actually failing. It requires some manual user input and the issue is that there are no steps on how to run it. Adding a small section with steps will help running this test properly. Also, move it from the jdk_security_manual_no_input to jdk_security_manual_interactive
+
+-----
+Title: [JDK-8335267] [XWayland] move screencast tokens from .awt to .java folder
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Currently the screencast tokens are stored in
+.awt/robot/screencast-tokens.properties
+when they should be in the .java folder
+e.g. in  .java/robot/screencast-tokens.properties
+
+-----
+Title: [JDK-8335344] test/jdk/sun/security/tools/keytool/NssTest.java fails to compile
+Priority: P3
+Type: Bug
+Component: security-libs
+Description: There is a compilation issue in the test test/jdk/sun/security/tools/keytool/NssTest.java because the HumanInputStream class was moved from KeyToolTest to a library class.
+open/test/jdk/sun/security/tools/keytool/KeyToolTest.java:1820: error: cannot find symbol
+HumanInputStream.test();
+To fix it, include the library in the test
+
+-----
+Title: [JDK-8335530] Java file extension missing in AuthenticatorTest
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: The `.java` file extension is missing for https://github.com/openjdk/jdk/blob/master/test/jdk/com/sun/net/httpserver/AuthenticatorTest
+The test also fails due to principal.getName() needs to be replaced with principal.getUsername() at line 57.
+It would be also good to refactor the test to use JUnit Jupiter API.
+
+-----
+Title: [JDK-8336854] CAInterop.java#actalisauthenticationrootca conflicted with /manual and /timeout
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: This manual test is failing with
+test result: Error. Parse Exception: `/manual' disables use of `/timeout'
+It is failing as timeout cannot work with manual.
+This. change is  done in this bug JDK-8334441
+
+-----
+Title: [JDK-8336911] ZGC: Division by zero in heuristics after JDK-8332717
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: when running with ubsan enabled binaries, the following issue is reported,
+e.g. in test
+compiler/uncommontrap/TestDeoptOOM_ZGenerational.jtr
+also in gc/z/TestSmallHeap.jtr
+jdk/src/hotspot/share/gc/z/zDirector.cpp:537:84: runtime error: division by zero
+#0 0x7f422495bd1f in calculate_young_to_old_worker_ratio src/hotspot/share/gc/z/zDirector.cpp:537
+#1 0x7f422495bd1f in select_worker_threads src/hotspot/share/gc/z/zDirector.cpp:694
+#2 0x7f42282a0d97 in select_worker_threads src/hotspot/share/gc/z/zDirector.cpp:689
+#3 0x7f42282a0d97 in initial_workers src/hotspot/share/gc/z/zDirector.cpp:784
+#4 0x7f42282a2485 in initial_workers src/hotspot/share/gc/z/zDirector.cpp:795
+#5 0x7f42282a2485 in start_minor_gc src/hotspot/share/gc/z/zDirector.cpp:797
+#6 0x7f42282a2485 in start_gc src/hotspot/share/gc/z/zDirector.cpp:826
+#7 0x7f42282a2485 in ZDirector::run_thread() src/hotspot/share/gc/z/zDirector.cpp:912
+#8 0x7f422840bdd8 in ZThread::run_service() src/hotspot/share/gc/z/zThread.cpp:29
+#9 0x7f4225ab6979 in ConcurrentGCThread::run() src/hotspot/share/gc/shared/concurrentGCThread.cpp:48
+#10 0x7f4227e1137a in Thread::call_run() src/hotspot/share/runtime/thread.cpp:225
+#11 0x7f42274619b1 in thread_native_entry src/hotspot/os/linux/os_linux.cpp:858
+#12 0x7f422c8d36e9 in start_thread (/lib64/libpthread.so.0+0xa6e9) (BuildId: 9a146bd267419cb6a8cf08d7c602953a0f2e12c5)
+#13 0x7f422c1dc58e in clone (/lib64/libc.so.6+0x11858e) (BuildId: f2d1cb1ef49f8c47d43a4053910ba6137673ccce)
+
+-----
+Title: [JDK-8337066] Repeated call of StringBuffer.reverse with double byte string returns wrong result
+Priority: P2
+Type: Bug
+Component: hotspot
+Description: When calling StringBuffer/StringBuilder.reverse with 2byte string repeatedly, the API returns wrong result.
+
+-----
+Title: [JDK-8337810] ProblemList BasicDirectoryModel/LoaderThreadCount.java on Windows
+Priority: P4
+Type: Sub-task
+Component: client-libs
+Description: The test BasicDirectoryModel/LoaderThreadCount.java fails rather often in our CI, exclude it for now.
+
+-----
+Title: [JDK-8338109] java/awt/Mouse/EnterExitEvents/ResizingFrameTest.java duplicate in ProblemList
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: JDK-8337320 regression
+java/awt/Mouse/EnterExitEvents/ResizingFrameTest.java 8005021 macosx-all
+java/awt/Mouse/EnterExitEvents/ResizingFrameTest.java 8332158 linux-x64
+
+-----
+Title: [JDK-8338110] Exclude Fingerprinter::do_type from ubsan checks
+Priority: P4
+Type: Sub-task
+Component: hotspot
+Description: For now we still have undefined behavior in Fingerprinter::do_type reorted by ubsan ;  exclude the method from ubsan checks until the signature handling code is adjusted .
+OS: generic
+
+-----
+Title: [JDK-8338380] Update TLSCommon/interop/AbstractServer to specify an interface to listen for connections
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: test/jdk/javax/net/ssl/TLSCommon/interop/AbstractServer.java it can be useful to allow tests to specify a specific interface on which to listen for incoming connections.
+Default should be the loopback interface.
+
+-----
+Title: [JDK-8338389] [JFR] Long strings should be added to the string pool
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: When committing JFR events with string data longer than 128 characters, the string isn't added to the JFR string pool.
+In scenarios with many events containing large string values, this can lead to very large JFR recordings. This is mostly the case for custom events, containing f.i. SQL strings, or other data. In the case where the string data consist of mostly duplicate data, adding them to the string pool has been shown to reduce the recording size by a factor of 10.
+The current scheme for adding strings to the pool adheres to strings 16-128 characters long. In order for a string to be pooled, potential duplicates are cached and checked in a set of four. With this change, the current scheme still holds for lengths 16-128, but strings longer than 128 characters are always pooled.
+
+-----
+Title: [JDK-8338402] GHA: some of bundles may not get removed
+Priority: P4
+Type: Bug
+Component: infrastructure
+Description: Some of bundles may not get removed. This is follows JDK-8336928. Problem does not always show up, so I have not seen it in my test runs, but since then I have  seen some GHA runs affected by this.
+Details:
+Turns out, that call to list artifacts is by default limited to first 30 artifacts. GHA of openjdk currently produces 75 artifacts of which 10 are bundles (built jdk). Problem happens if build on some platform takes too long and enough test results (other platforms) got uploaded in meantime. Bundle can then be shifted down in list and not fall into list of first 30 artifacts. Problem can be fixed by increasing per_page limit (API allows up to 100).
+
+-----
+Title: [JDK-8338449] ubsan: division by zero in sharedRuntimeTrans.cpp
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: When running with ubsan enabled binaries on Linux ppc64le, these  divisions by zero are detected.
+test
+java/lang/Math/Log10Tests.java: Tests for {Math, StrictMath}.log10
+----------stderr:(4/324)----------
+/jdk/src/hotspot/share/runtime/sharedRuntimeTrans.cpp:219:27: runtime error: division by zero
+#0 0x7fffa7e14abc in SharedRuntime::dlog10(double) (/build_ubsan/images/jdk/lib/server/libjvm.so+0x69f4abc)
+#1 0x7fff8b8fc8e8  ()
+test
+java/lang/Math/LogTests.java: Tests for {Math, StrictMath}.log
+/jdk/src/hotspot/share/runtime/sharedRuntimeTrans.cpp:125:27: runtime error: division by zero
+#0 0x7fff887f48bc in __ieee754_log(double) (/build_ubsan/images/jdk/lib/server/libjvm.so+0x69f48bc)
+#1 0x7fff6b8fc768  ()
+test
+java/lang/Math/PowTests.java: Tests for {Math, StrictMath}.pow
+/jdk/src/hotspot/share/runtime/sharedRuntimeTrans.cpp:508:23: runtime error: division by zero
+#0 0x7fff92fd61f0 in SharedRuntime::dpow(double, double) (/build_ubsan/images/jdk/lib/server/libjvm.so+0x69f61f0)
+#1 0x7fff7701c8ec  ()
+Might be that these divisions are desired so we could consider excluding the code from ubsan checks.
+For some reason I do not see the failures on Linux x86_64 when running those tests .
+
+-----
+Title: [JDK-8339384] Unintentional IOException in jdk.jdi module when JDWP end of stream occurs
+Priority: P5
+Type: Bug
+Component: hotspot
+Description: The block of code in com.sun.tools.jdi.TargetVM has a logic error which leads to an IOException being raised every time the JDWP stream that it is parsing reaches the end of stream:
+public void run() {
+if ((vm.traceFlags & VirtualMachine.TRACE_SENDS) != 0) {
+vm.printTrace("Target VM interface thread running");
+}
+Packet p=null,p2;
+String idString;
+while (shouldListen) {
+boolean done = false;
+try {
+byte b[] = connection.readPacket();
+if (b.length == 0) {
+done = true;
+}
+p = Packet.fromByteArray(b);
+} catch (IOException e) {
+done = true;
+}
+The fix for the unintentional IOException is to add an else case if the readPacket() returns 0 length
+
+-----
+Title: [JDK-8339560] Unaddressed comments during code review of JDK-8337664
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: During the review, Rajan and Sean had several comments that I was unable to address because of time constraints. Nothing was urgent so it was decided to file a follow-on bug.
+1. test/jdk/sun/security/ssl/X509TrustManagerImpl/Entrust/Distrust.java, line 113:
+Rajan - "Please update this and other Exception thrown in loadCertificateChain and testTM function to RuntimeException."
+2. test/jdk/sun/security/ssl/X509TrustManagerImpl/Entrust/Distrust.java, line 141:
+Rajan - "Should this be updated to throw SkippedException so we know that certificates are expired?"
+3. Sean - "I noticed we could combine some of the Symantec and Entrust tests, but I think it is too risky at this point."
+
+-----
+Title: [JDK-8339591] Mark jdk/jshell/ExceptionMessageTest.java intermittent
+Priority: P4
+Type: Bug
+Component: infrastructure
+Description: The test  jdk/jshell/ExceptionMessageTest.java has quite a few intermittent errors/timeouts etc. , so mark the test intermittent .
+OS: generic
+
+-----
+Title: [JDK-8339741] RISC-V: C ABI breakage for integer on stack
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: When passing any integer shorter than XLEN(/64) on stack it must be enlarged and sign extended to XLEN(/64).
+These are now passed as 32-bit.
+Only reason why this is only P3 is because how gcc 'happens' to load integer shorter than XLEN(/64). (lw/lh/lb).
+While LLVM uses ld for these thus we immediately get into trouble when calling a native method with enough arguments.
+
+-----
+Title: [JDK-8339803] Acknowledge case insensitive unambiguous keywords in tzdata files
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: TZDB spec allows not only month/weekday names, but the keywords themselves can be case-insensitive and unambiguous abbreviations.
+OS: generic
+
+-----
+Title: [JDK-8340007] Refactor KeyEvent/FunctionKeyTest.java
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The java/awt/event/KeyEvent/FunctionKeyTest.java test can be improved:
+The class FunctionKeyTester should be moved into FunctionKeyTest;
+The constants in switch statement 403, 404 should be replaced with KEY_PRESSED and KEY_RELEASED which are more descriptive;
+The `failures` field is of type StringBuilder which is not thread-safe, but it's accessed from two threads.
+
+-----
+Title: [JDK-8340008] KeyEvent/KeyTyped/Numpad1KeyTyped.java has 15 seconds timeout
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The java/awt/event/KeyEvent/KeyTyped/Numpad1KeyTyped.java has a timeout of 15 seconds to wait for a key press to be processed. It is an overkill, 2 seconds is plenty enough.
+
+-----
+Title: [JDK-8340365] Position the first window of a window list
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Support of multiple test UI windows in PassFailJFrame is still evolving. After JDK-8340210, the Builder has a method `positionTestUI` to supply an implementation of PositionWindows interface which should handle the positioning of all test UI windows created.
+If PositionWindows is not provided, all the test UI windows are left with the default coordinates: 0, 0.
+If PassFailJFrame called positionTestWindow for the first window, it would allow the test developer to position other windows based on the position of the first one.
+See https://github.com/openjdk/jdk/pull/21029#discussion_r1763744407
+
+-----
+Title: [JDK-8340383] VM issues warning failure to find kernel32.dll on Windows nanoserver
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: When trying to run jdk-23+37 on Windows nanoserver container, the VM
+initilization throws up the warning:
+OpenJDK 64-Bit Server VM warning: Failed to determine whether the OS can retrieve version information from kernel32.dll: The system cannot find the file specified
+To recreate, start a Windows nanoserver:
+docker run -it mcr.microsoft.com/windows/nanoserver:ltsc2022 cmd.exe
+# download jdk-23+37...
+java -version
+I am unclear of the consequences of this warning, or usability of the VM??
+I suspect this is because on Windows nanoserver kernel32.dll is not within the
+System32 directory itself but within the "forwarders" sub-folder.
+Thus this logic probably needs fixing: https://github.com/openjdk/jdk/blob/08a2f841ec78a10f8d6d54b2ac3a92e89f765f14/src/hotspot/os/windows/os_windows.cpp#L4101
+OS: windows
+
+-----
+Title: [JDK-8340387] Update OS detection code to recognize Windows Server 2025
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: Windows Server 2025 will be released in a few months.
+The OS detection code of the JVM/JDK should recognize the new Windows server 2025 version.
+(currently  Windows server 2022  is printed, that is wrong)
+The build numbers of some recent previews documented here
+https://learn.microsoft.com/en-us/windows-server/get-started/whats-new-windows-server-2025
+are 26080 and 26085 .
+The final release version of Windows Server 2025 from Nov 1st, 2025 has an official build number 26100 .
+OS: windows
+
+-----
+Title: [JDK-8340398] [JVMCI] Unintuitive behavior of UseJVMCICompiler option
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: Disabling the JVMCI compiler with `-XX:-UseJVMCICompiler` not only deactivates JVMCI-based CompileBroker compilations but also prevents the loading of the libjvmci compiler. While this works as expected for CompileBroker compilations, it poses issues for the Truffle compiler. When `-XX:-UseJVMCICompiler` is used, Truffle falls back to the jargraal compiler, if available. This behavior may be confusing for Truffle users.
+Expected behavior:
+With `-XX:+UseGraalJIT`, both CompileBroker compilations and Truffle compilations should utilize the libjvmci compiler, if available.
+With `-XX:+EnableJVMCI`, CompileBroker compilations should use the C2 compiler, while only Truffle compilations should leverage the libjvmci compiler, if available.
+OS: generic
+
+-----
+Title: [JDK-8340466] Add description for PassFailJFrame constructors
+Priority: P4
+Type: Sub-task
+Component: client-libs
+Description: Write missing descriptions for PassFailJFrame constructors.
+Perhaps, deprecate the constructors in favour of Builder?
+
+-----
+Title: [JDK-8340552] Harden TzdbZoneRulesCompiler against missing zone names
+Priority: P5
+Type: Bug
+Component: infrastructure
+Description: If zone names are missing, negative results from the binarySearch() call are written to the output file. This results in an ArrayIndexOutOfBoundsException during loading.
+OS: generic
+
+-----
+Title: [JDK-8340657] [PPC64] SA determines wrong unextendedSP
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: adjustUnextendedSP() determines a wrong value for raw_unextendedSP. It uses the FP which basically pops the frame, so we end up in the wrong frame.
+This causes errors like JDK-8339772.
+
+-----
+Title: [JDK-8340785] Update description of PassFailJFrame and samples
+Priority: P4
+Type: Sub-task
+Component: client-libs
+Description: Expand the description of PassFailJFrame, add sections, and update samples.
+Provide more detailed description of the PassFailJFrame features, reference Builder methods to configure the framework.
+The samples should use method references. Mark SampleOldManualTest as obsolete.
+
+-----
+Title: [JDK-8340801] Disable ubsan checks in some awt/2d coding
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: There is some old awt/2d coding where warnings occur when running with ubsan enabled binaries.
+However at most of these locations the coding should work (at least on our supported platform set) so the warnings can be disabled at least for now.
+OS: generic
+
+-----
+Title: [JDK-8340899] Remove wildcard bound in PositionWindows.positionTestWindows
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: Currently, PassFailJFrame.PositionWindows.positionTestWindows declares its testWindows parameter with the type of List which was introduced in JDK-8294156 and later made available in JDK-8340210.
+Internally, the window list is a simple List.
+The wildcard is useful for the return type of the createTestUI method in WindowListCreator so that the code in a test could use List instead of List as well as pass Frame or JFrame.
+By the time, PositionWindows.positionTestWindows comes into play, List is enough.
+The type of PositionWindows.positionTestWindows can be changed to List.
+It is a backwards compatible change, any test which declared its method for positionTestWindows with List continues to compile successfully.
+Yet the opposite is not true: List isn't compatible with the current List.
+
+-----
+Title: [JDK-8340923] The class LogSelection copies uninitialized memory
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: The class LogSelection's custom constructor does not initialize the whole _tags array but is lacking a custom copy constructor and assignment operator. This means that any copy will technically copy uninitialized memory, which is technically undefined behavior.
+We fill the whole array to avoid this issue.
+
+-----
+Title: [JDK-8342063] [21u][aix] Backport introduced redundant line in ProblemList
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: Bakcport of  https://bugs.openjdk.org/browse/JDK-8316387: Exclude more failing multicast tests on AIX after JDK-8315651 introduced a second line for java/nio/channels/DatagramChannel/AfterDisconnect.java. Remove.
+
+-----
+Title: [JDK-8342181] Update tests to use stronger Key and Salt size
+Priority: P2
+Type: Sub-task
+Component: security-libs
+Description: Some tests are identified to use weak key sizes and salt in the tests. If the test purpose is not to test with weak keys then these tests should be updated to use stronger key. If the key cannot be updated unless the algorithm is also updated, do not change.
+
+-----
+Title: [JDK-8342183] Update tests to use stronger algorithms and keys
+Priority: P2
+Type: Sub-task
+Component: security-libs
+Description: Some tests are identified to use weak/legacy algorithms in the tests. If the test purpose is not to test with weak algorithms then these tests should be updated to use stronger algorithms. If the test uses a weak key, update as well.
+
+-----
+Title: [JDK-8342188] Update tests to use stronger key parameters and certificates
+Priority: P2
+Type: Sub-task
+Component: security-libs
+Description: Some tests are identified to use weak key parameters in the tests (prime modulus, private/public values), tests:
+open/test/jdk/com/sun/crypto/provider/Cipher/RSA/TestRSA.java
+open/test/jdk/com/sun/crypto/provider/KeyAgreement/DHGenSharedSecret.java
+open/test/jdk/com/sun/crypto/provider/KeyAgreement/DHKeyAgreement2.java
+open/test/jdk/com/sun/crypto/provider/KeyAgreement/DHKeyAgreement3.java
+open/test/jdk/com/sun/crypto/provider/KeyAgreement/DHKeyFactory.java
+open/test/jdk/com/sun/crypto/provider/KeyAgreement/DHKeyGenSpeed.java
+open/test/jdk/sun/security/pkcs11/KeyAgreement/TestInterop.java
+open/test/jdk/com/sun/crypto/provider/TLS/TestLeadingZeroes.java
+open/test/jdk/java/security/KeyRep/Serial.java
+Also, some tests certificates were generated using weak keys/algorithms, tests:
+open/test/jdk/sun/security/ssl/X509TrustManagerImpl/PKIXExtendedTM.java
+open/test/jdk/sun/security/ssl/X509TrustManagerImpl/SunX509ExtendedTM.java
+open/test/jdk/sun/security/x509/X509CRLImpl/Verify.java
+open/test/jdk/sun/security/x509/X509CertImpl/Verify.java
+
+-----
+Title: [JDK-8342578] GHA: RISC-V: Bootstrap using Debian snapshot is still failing
+Priority: P4
+Type: Bug
+Component: infrastructure
+Description: In JDK-8339548, we switched to use Debian snapshot (https://snapshot.debian.org/archive/debian/20240228T034848Z/) for bootstrap.
+The reason is that we don't have a stable Debian release for RISC-V yet. And Debian "sid" (https://httpredir.debian.org/debian)
+that we use for debootstrapping RISC-V breaks at that time. This works as expected for about one month. But bad news is that GHA
+linux-cross-build job for RISC-V starts to fail again this week. Sigh! I guess there might be some change on the distro running
+on GHA test machines as same debootstrap command still works on my Ubuntu 22.04.
+Good news is that that Debian "sid" can now bootstrap for RISC-V. So one way would be simply switches back to Debian "sid". As the version
+of dpkg command on GHA machines is old (1.21.1), we will need one extra option --no-merged-usr for bootstrap command to work.
+This is not necessary for newer dpkg versions like 1.22.6.
+
+-----
+Title: [JDK-8342669] [21u] Fix TestArrayAllocatorMallocLimit after backport of JDK-8315097
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: I had to extend the changes of 8315097 to this file that was removed in head before the original 8315097 was applied. I got one call wrong.
+See also https://github.com/openjdk/jdk21u-dev/commit/1f38afa6c6fa7949c5d7171b817f1d7883987cf4#diff-21d07968b5ddcf0fc75f2b6b8c9e05935fe19a819397c6a17a9f4798a0007b85
+
+-----
+Title: [JDK-8315097] Rename createJavaProcessBuilder
+Priority: P4
+Type: Sub-task
+Component: hotspot
+Description: Rename createJavaProcessBuilder so that it is not used by mistake instead of createTestJvm
+
+-----
+Title: [JDK-8342681] TestLoadBypassesNullCheck.java fails improperly specified VM option
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: Newly added test gc/shenandoah/compiler/TestLoadBypassesNullCheck.java fails, the test log snippet:
+Error: VM option 'StressGCM' is diagnostic and must be enabled via -XX:+UnlockDiagnosticVMOptions.
+Error: The unlock option must precede 'StressGCM'.
+Improperly specified VM option 'StressGCM'
+Error: Could not create the Java Virtual Machine.
+Error: A fatal exception has occurred. Program will exit.
+OS: generic
+
+-----
+Title: [JDK-8342905] Thread.setContextClassloader from thread in FJP commonPool task no longer works after JDK-8327501 redux
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: See JDK-8328366 for more details.
+
+-----
+Title: [JDK-8327501] Common ForkJoinPool prevents class unloading in some cases
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: When the ForkJoinPool.commonPool() creates new worker threads, they capture an AccessControlContext from the location where they were created, which means that the class won't get unloaded for the lifetime of that worker thread.
+
+-----
+Title: [JDK-8343474] [updates] Customize README.md to specifics of update project
+Priority: P4
+Type: Bug
+Component: infrastructure
+Description: Add some project specific information to README.md, among others to better guide new contributors.
+Let’s keep this sufficiently generic so that the information holds for jdkXu and jdkXu-dev
+and that the change can easily be backported (by adapting 21-17 etc.).
+
+-----
+Title: [JDK-8343724] [PPC64] Disallow OptoScheduling
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: The JVM currently allows switching on -XX:+OptoScheduling.
+This should not be allowed because the required information in ppc.ad file is neither accurate nor complete.
+JDK-8338446 shows that it implies Undefined Behavior.
+We could implement support for OptoScheduling in the future, but the benefit is questionable because modern Power processors use out-of-order scheduling.
+
+-----
+Title: [JDK-8344993] [21u] [REDO] Backport JDK-8327501 and JDK-8328366 to JDK 21
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: JDK-8327501 and JDK-8328366 got backported to OpenJDK 21.0.5 and backed out with JDK-8341989 in the same release 21.0.5. This is a redo bug for a new attempt to fix the class unloading issue described in JDK-8327501 in a future version of OpenJDK 21.
+By backing out JDK-8341989, we plan to re-introduce JDK-8327501 and JDK-8328366 to JDK 21u. Contrary to the initial attempt to have JDK-8327501 and JDK-8328366 in JDK 21u, we will now also backport JDK-8342905 that fixes the issue observed with the previous attempt.
+OS: generic
+
+-----
+Title: [JDK-8328366] Thread.setContextClassloader from thread in FJP commonPool task no longer works after JDK-8327501
+Priority: P3
+Type: Bug
+Component: core-libs
+Description: Christian Wimmer in JDK-8327501 writes:
+The fix for JDK-8327501 has a compatibility impact that has been overlooked: Using `InnocuousForkJoinWorkerThread` means that any task that runs in the common pool can no longer use `Thread.currentThread().setContextClassLoader(...)` - that unconditionally throws a `SecurityException`.
+This breaks many existing Java libraries and frameworks. One example is Quarkus. See:
+https://github.com/quarkusio/quarkus/issues/39526
+OS: generic

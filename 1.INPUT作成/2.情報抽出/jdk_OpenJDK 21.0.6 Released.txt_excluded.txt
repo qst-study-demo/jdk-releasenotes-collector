@@ -1,0 +1,165 @@
+JDK-6942632	Excluded: non-bug type 'Enhancement'	[JDK-6942632] Hotspot should be able to use more than 64 logical processors on Windows
+JDK-8028127	Excluded: documentation/test-only change	[JDK-8028127] Regtest java/security/Security/SynchronizedAccess.java is incorrect
+JDK-8195675	Excluded: documentation/test-only change	[JDK-8195675] Call to insertText with single character from custom Input Method ignored
+JDK-8207908	Excluded: documentation/test-only change	[JDK-8207908] JMXStatusTest.java fails assertion intermittently
+JDK-8225220	Excluded: non-Windows platform(s): linux	[JDK-8225220] When the Tab Policy is checked,the scroll button direction displayed incorrectly.
+JDK-8240343	Excluded: documentation/test-only change	[JDK-8240343] JDI stopListening/stoplis001 "FAILED: listening is successfully stopped without starting listening"
+JDK-8283214	Excluded: documentation/test-only change	[JDK-8283214] [macos] Screen magnifier does not show the magnified text for JComboBox
+JDK-8296972	Excluded: documentation/test-only change	[JDK-8296972] [macos13] java/awt/Frame/MaximizedToIconified/MaximizedToIconified.java: getExtendedState() != 6 as expected.
+JDK-8306446	Excluded: documentation/test-only change	[JDK-8306446] java/lang/management/ThreadMXBean/Locks.java transient failures
+JDK-8309218	Excluded: documentation/test-only change	[JDK-8309218] java/util/concurrent/locks/Lock/OOMEInAQS.java still times out with ZGC, Generational ZGC, and SerialGC
+JDK-8311301	Excluded: JVM stability/crash fix	[JDK-8311301] MethodExitTest may fail with stack buffer overrun
+JDK-8311656	Excluded: non-bug type 'Enhancement'	[JDK-8311656] Shenandoah: Unused ShenandoahSATBAndRemarkThreadsClosure::_claim_token
+JDK-8312518	Excluded: non-Windows platform(s): os_x	[JDK-8312518] [macos13] setFullScreenWindow() shows black screen on macOS 13 & above
+JDK-8313374	Excluded: non-Windows platform(s): linux	[JDK-8313374] --enable-ccache's CCACHE_BASEDIR breaks builds
+JDK-8313878	Excluded: non-Windows platform(s): linux	[JDK-8313878] Exclude two compiler/rtm/locking tests on ppc64le
+JDK-8315701	Excluded: non-Windows platform(s): os_x	[JDK-8315701] [macos] Regression: KeyEvent has different keycode on different keyboard layouts
+JDK-8316893	Excluded: non-bug type 'Enhancement'	[JDK-8316893] Compile without -fno-delete-null-pointer-checks
+JDK-8316895	Excluded: documentation/test-only change	[JDK-8316895] SeenThread::print_action_queue called on a null pointer
+JDK-8316907	Excluded: JVM stability/crash fix	[JDK-8316907] Fix nonnull-compare warnings
+JDK-8317116	Excluded: non-bug type 'Enhancement'	[JDK-8317116] Provide layouts for multiple test UI in PassFailJFrame
+JDK-8317575	Excluded: JVM stability/crash fix	[JDK-8317575] AArch64: C2_MacroAssembler::fast_lock uses rscratch1 for cmpxchg result
+JDK-8318442	Excluded: non-Windows platform(s): linux	[JDK-8318442] java/net/httpclient/ManyRequests2.java fails intermittently on Linux
+JDK-8319640	Excluded: documentation/test-only change	[JDK-8319640] ClassicFormat::parseObject (from DateTimeFormatter) does not conform to the javadoc and may leak DateTimeException
+JDK-8319673	Excluded: non-Windows platform(s): linux	[JDK-8319673] Few security tests ignore VM flags
+JDK-8319678	Excluded: performance-only change	[JDK-8319678] Several tests from corelibs areas ignore VM flags
+JDK-8319970	Excluded: non-bug type 'Enhancement'	[JDK-8319970] AArch64: enable tests compiler/intrinsics/Test(Long|Integer)UnsignedDivMod.java on aarch64
+JDK-8320397	Excluded: non-bug type 'Enhancement'	[JDK-8320397] RISC-V: Avoid passing t0 as temp register to MacroAssembler:: cmpxchg_obj_header/cmpxchgptr
+JDK-8320586	Excluded: non-bug type 'Task'	[JDK-8320586] update manual test/jdk/TEST.groups
+JDK-8320665	Excluded: non-bug type 'Task'	[JDK-8320665] update jdk_core at open/test/jdk/TEST.groups
+JDK-8320682	Excluded: documentation/test-only change	[JDK-8320682] [AArch64] C1 compilation fails with "Field too big for insn"
+JDK-8321470	Excluded: non-bug type 'Enhancement'	[JDK-8321470] ThreadLocal.nextHashCode can be static final
+JDK-8321474	Excluded: non-bug type 'Enhancement'	[JDK-8321474] TestAutoCreateSharedArchiveUpgrade.java should be updated with JDK 21
+JDK-8321550	Excluded: non-bug type 'Enhancement'	[JDK-8321550] Update several runtime/cds tests to use vm flags or mark as flagless
+JDK-8321616	Excluded: non-bug type 'Enhancement'	[JDK-8321616] Retire binary test vectors in test/jdk/java/util/zip/ZipFile
+JDK-8321940	Excluded: non-bug type 'Enhancement'	[JDK-8321940] Improve CDSHeapVerifier in handling of interned strings
+JDK-8322166	Excluded: performance-only change	[JDK-8322166] Files.isReadable/isWritable/isExecutable expensive when file does not exist
+JDK-8322754	Excluded: JVM stability/crash fix	[JDK-8322754] click JComboBox when dialog about to close causes IllegalComponentStateException
+JDK-8322830	Excluded: non-bug type 'Enhancement'	[JDK-8322830] Add test case for ZipFile opening a ZIP with no entries
+JDK-8325038	Excluded: documentation/test-only change	[JDK-8325038] runtime/cds/appcds/ProhibitedPackage.java can fail with UseLargePages
+JDK-8325399	Excluded: non-bug type 'Enhancement'	[JDK-8325399] Add tests for virtual threads doing Selector operations
+JDK-8325506	Excluded: non-bug type 'Enhancement'	[JDK-8325506] Ensure randomness is only read from provided SecureRandom object
+JDK-8325525	Excluded: non-bug type 'Enhancement'	[JDK-8325525] Create jtreg test case for JDK-8325203
+JDK-8325610	Excluded: non-bug type 'Enhancement'	[JDK-8325610] CTW: Add StressIncrementalInlining to stress options
+JDK-8325762	Excluded: non-bug type 'Enhancement'	[JDK-8325762] Use PassFailJFrame.Builder.splitUI() in PrintLatinCJKTest.java
+JDK-8325906	Excluded: performance-only change	[JDK-8325906] Problemlist vmTestbase/vm/mlvm/meth/stress/compiler/deoptimize/Test.java#id1 until JDK-8320865 is fixed
+JDK-8326100	Excluded: non-bug type 'Enhancement'	[JDK-8326100] DeflaterDictionaryTests should use Deflater.getBytesWritten instead of Deflater.getTotalOut
+JDK-8326121	Excluded: documentation/test-only change	[JDK-8326121] vmTestbase/gc/g1/unloading/tests/unloading_keepRef_rootClass_inMemoryCompilation_keep_cl failed with Full gc happened. Test was useless.
+JDK-8326611	Excluded: non-bug type 'Enhancement'	[JDK-8326611] Clean up vmTestbase/nsk/stress/stack tests
+JDK-8326898	Excluded: non-bug type 'Enhancement'	[JDK-8326898] NSK tests should listen on loopback addresses only
+JDK-8328242	Excluded: non-bug type 'Enhancement'	[JDK-8328242] Add a log area to the PassFailJFrame
+JDK-8328303	Excluded: documentation/test-only change	[JDK-8328303] 3 JDI tests timed out with UT enabled
+JDK-8328402	Excluded: non-bug type 'Enhancement'	[JDK-8328402] Implement pausing functionality for the PassFailJFrame
+JDK-8328619	Excluded: documentation/test-only change	[JDK-8328619] sun/management/jmxremote/bootstrap/SSLConfigFilePermissionTest.java failed with BindException: Address already in use
+JDK-8328723	Excluded: documentation/test-only change	[JDK-8328723] IP Address error when client enables HTTPS endpoint check on server socket
+JDK-8329353	Excluded: documentation/test-only change	[JDK-8329353] ResolvedReferencesNotNullTest.java failed with Incorrect resolved references array, quxString should not be archived
+JDK-8329533	Excluded: documentation/test-only change	[JDK-8329533] TestCDSVMCrash fails on libgraal
+JDK-8330621	Excluded: non-bug type 'Enhancement'	[JDK-8330621] Make 5 compiler tests use ProcessTools.executeProcess
+JDK-8331391	Excluded: performance-only change	[JDK-8331391] Enhance the keytool code by invoking the buildTrustedCerts method for essential options
+JDK-8331864	Excluded: non-bug type 'Enhancement'	[JDK-8331864] Update Public Suffix List to 1cbd6e7
+JDK-8332112	Excluded: non-bug type 'Enhancement'	[JDK-8332112] Update nsk.share.Log to don't print summary during VM shutdown hook
+JDK-8332340	Excluded: non-bug type 'Enhancement'	[JDK-8332340] Add JavacBench as a test case for CDS
+JDK-8332461	Excluded: JVM stability/crash fix	[JDK-8332461] ubsan : dependencies.cpp:906:3: runtime error: load of value 4294967295, which is not a valid value for type 'DepType'
+JDK-8332777	Excluded: non-bug type 'Enhancement'	[JDK-8332777] Update JCStress test suite
+JDK-8332866	Excluded: JVM stability/crash fix	[JDK-8332866] Crash in ImageIO JPEG decoding when MEM_STATS in enabled
+JDK-8332901	Excluded: non-Windows platform(s): os_x	[JDK-8332901] Select{Current,New}ItemTest.java for Choice don't open popup on macOS
+JDK-8333098	Excluded: non-Windows platform(s): linux	[JDK-8333098] ubsan: bytecodeInfo.cpp:318:59: runtime error: division by zero
+JDK-8333108	Excluded: non-bug type 'Enhancement'	[JDK-8333108] Update vmTestbase/nsk/share/DebugeeProcess.java to don't use finalization
+JDK-8333144	Excluded: non-Windows platform(s): linux	[JDK-8333144] docker tests do not work when ubsan is configured
+JDK-8333248	Excluded: JVM stability/crash fix	[JDK-8333248] VectorGatherMaskFoldingTest.java failed when maximum vector bits is 64
+JDK-8333317	Excluded: documentation/test-only change	[JDK-8333317] Test sun/security/pkcs11/sslecc/ClientJSSEServerJSSE.java failed with: Invalid ECDH ServerKeyExchange signature
+JDK-8333427	Excluded: documentation/test-only change	[JDK-8333427] langtools/tools/javac/newlines/NewLineTest.java is failing on Japanese Windows
+JDK-8333728	Excluded: non-Windows platform(s): linux	[JDK-8333728] ubsan: shenandoahFreeSet.cpp:1347:24: runtime error: division by zero
+JDK-8334057	Excluded: documentation/test-only change	[JDK-8334057] JLinkReproducibleTest.java support receive test.tool.vm.opts
+JDK-8334405	Excluded: documentation/test-only change	[JDK-8334405] java/nio/channels/Selector/SelectWithConsumer.java#id0 failed in testWakeupDuringSelect
+JDK-8334475	Excluded: documentation/test-only change	[JDK-8334475] UnsafeIntrinsicsTest.java#ZGenerationalDebug assert(!assert_on_failure) failed: Has low-order bits set
+JDK-8334562	Excluded: documentation/test-only change	[JDK-8334562] Automate com/sun/security/auth/callback/TextCallbackHandler/Default.java test
+JDK-8334567	Excluded: non-Windows platform(s): linux	[JDK-8334567] [test] runtime/os/TestTracePageSizes move ppc handling
+JDK-8334719	Excluded: JVM stability/crash fix	[JDK-8334719] (se) Deferred close of SelectableChannel may result in a Selector doing the final close before concurrent I/O on channel has completed
+JDK-8335449	Excluded: documentation/test-only change	[JDK-8335449] runtime/cds/DeterministicDump.java fails with File content different at byte ...
+JDK-8335664	Excluded: documentation/test-only change	[JDK-8335664] Parsing jsr broken: assert(bci>= 0 && bci < c->method()->code_size()) failed: index out of bounds
+JDK-8335709	Excluded: documentation/test-only change	[JDK-8335709] C2: assert(!loop->is_member(get_loop(useblock))) failed: must be outside loop
+JDK-8335912	Excluded: non-bug type 'Enhancement'	[JDK-8335912] Add an operation mode to the jar command when extracting to not overwriting existing files
+JDK-8336240	Excluded: documentation/test-only change	[JDK-8336240] Test com/sun/crypto/provider/Cipher/DES/PerformanceTest.java fails with java.lang.ArithmeticException
+JDK-8336257	Excluded: JVM stability/crash fix	[JDK-8336257] Additional tests in jmxremote/startstop to match on PID not app name
+JDK-8336315	Excluded: documentation/test-only change	[JDK-8336315] tools/jpackage/windows/WinChildProcessTest.java Failed: Check is calculator process is alive
+JDK-8336413	Excluded: non-Windows platform(s): linux	[JDK-8336413] gtk headers : Fix typedef redeclaration of GMainContext and GdkPixbuf
+JDK-8336640	Excluded: non-bug type 'Enhancement'	[JDK-8336640] Shenandoah: Parallel worker use in parallel_heap_region_iterate
+JDK-8332717	Excluded: non-Windows platform(s): linux	[JDK-8332717] ZGC: Division by zero in heuristics
+JDK-8337067	Excluded: documentation/test-only change	[JDK-8337067] Test runtime/classFileParserBug/Bad_NCDFE_Msg.java won't compile
+JDK-8337320	Excluded: documentation/test-only change	[JDK-8337320] Update ProblemList.txt with tests known to fail on XWayland
+JDK-8337331	Excluded: JVM stability/crash fix	[JDK-8337331] crash: pinned virtual thread will lead to jvm crash when running with the javaagent option
+JDK-8337410	Excluded: non-bug type 'Enhancement'	[JDK-8337410] The makefiles should set problemlist and adjust timeout basing on the given VM flags
+JDK-8337780	Excluded: non-bug type 'Enhancement'	[JDK-8337780] RISC-V: C2: Change C calling convention for sp to NS
+JDK-8337826	Excluded: non-bug type 'Enhancement'	[JDK-8337826] Improve logging in OCSPTimeout and SimpleOCSPResponder to help diagnose JDK-8309754
+JDK-8309754	Excluded: documentation/test-only change	[JDK-8309754] java/security/cert/CertPathValidator/OCSP/OCSPTimeout.java failed with "Expected to pass, found 1 soft fail exceptions"
+JDK-8337851	Excluded: documentation/test-only change	[JDK-8337851] Some tests have name which confuse jtreg
+JDK-8337876	Excluded: non-bug type 'Enhancement'	[JDK-8337876] [IR Framework] Add support for IR tests with @Stable
+JDK-8337966	Excluded: non-Windows platform(s): linux	[JDK-8337966] (fs) Files.readAttributes fails with Operation not permitted on older docker releases
+JDK-8338058	Excluded: non-bug type 'Enhancement'	[JDK-8338058] map_or_reserve_memory_aligned Windows enhance remap assertion
+JDK-8338101	Excluded: non-bug type 'Enhancement'	[JDK-8338101] remove old remap assertion in map_or_reserve_memory_aligned  after JDK-8338058
+JDK-8338112	Excluded: documentation/test-only change	[JDK-8338112] Test testlibrary_tests/ir_framework/tests/TestPrivilegedMode.java fails with release build
+JDK-8338344	Excluded: documentation/test-only change	[JDK-8338344] Test TestPrivilegedMode.java intermittent fails java.lang.NoClassDefFoundError: jdk/test/lib/Platform
+JDK-8338550	Excluded: non-Windows platform(s): linux	[JDK-8338550] Do libubsan1 installation in test container only if requested
+JDK-8338748	Excluded: documentation/test-only change	[JDK-8338748] [17u,21u] Test Disconnect.java compile error: cannot find symbol after JDK-8299813
+JDK-8299813	Excluded: documentation/test-only change	[JDK-8299813] java/nio/channels/DatagramChannel/Disconnect.java fails with jtreg test timeout due to lost datagram
+JDK-8338751	Excluded: documentation/test-only change	[JDK-8338751] ConfigureNotify behavior has changed in KWin 6.2
+JDK-8338759	Excluded: non-Windows platform(s): linux_oracle	[JDK-8338759] Add extra diagnostic to java/net/InetAddress/ptr/Lookup.java
+JDK-8338924	Excluded: documentation/test-only change	[JDK-8338924] C1: assert(0 <= i && i < _len) failed: illegal index 5 for length 5
+JDK-8339080	Excluded: non-bug type 'Enhancement'	[JDK-8339080] Bump update version for OpenJDK: jdk-21.0.6
+JDK-8339248	Excluded: non-bug type 'Enhancement'	[JDK-8339248] RISC-V: Remove li64 macro assembler routine and related code
+JDK-8339386	Excluded: JVM stability/crash fix	[JDK-8339386] Assertion on AIX - original PC must be in the main code section of the compiled method
+JDK-8339416	Excluded: non-bug type 'Enhancement'	[JDK-8339416] [s390x] Provide implementation for resolve_global_jobject
+JDK-8339487	Excluded: documentation/test-only change	[JDK-8339487] ProcessHandleImpl os_getChildren sysctl call - retry in case of ENOMEM and enhance exception message
+JDK-8339548	Excluded: non-Windows platform(s): linux	[JDK-8339548] GHA: RISC-V: Use Debian snapshot archive for bootstrap
+JDK-8337664	Excluded: non-bug type 'Enhancement'	[JDK-8337664] Distrust TLS server certificates issued after Oct 2024 and anchored by Entrust Root CAs
+JDK-8339637	Excluded: non-bug type 'Enhancement'	[JDK-8339637] (tz) Update Timezone Data to 2024b
+JDK-8339644	Excluded: documentation/test-only change	[JDK-8339644] Improve parsing of Day/Month in tzdata rules
+JDK-8339648	Excluded: non-bug type 'Enhancement'	[JDK-8339648] ZGC: Division by zero in rule_major_allocation_rate
+JDK-8339725	Excluded: JVM stability/crash fix	[JDK-8339725] Concurrent GC crashed due to GetMethodDeclaringClass
+JDK-8339731	Excluded: documentation/test-only change	[JDK-8339731] java.desktop/share/classes/javax/swing/text/html/default.css typo in margin settings
+JDK-8339787	Excluded: non-bug type 'Enhancement'	[JDK-8339787] Add some additional diagnostic output to java/net/ipv6tests/UdpTest.java
+JDK-8339892	Excluded: documentation/test-only change	[JDK-8339892] Several security shell tests don't set TESTJAVAOPTS
+JDK-8340109	Excluded: performance-only change	[JDK-8340109] Ubsan: ciEnv.cpp:1660:65: runtime error: member call on null pointer of type 'struct CompileTask'
+JDK-8340210	Excluded: non-bug type 'Enhancement'	[JDK-8340210] Add positionTestUI() to PassFailJFrame.Builder
+JDK-8340214	Excluded: JVM stability/crash fix	[JDK-8340214] C2 compilation asserts with "no node with a side effect" in PhaseIdealLoop::try_sink_out_of_loop
+JDK-8340230	Excluded: performance-only change	[JDK-8340230] Tests crash: assert(is_in_encoding_range || k->is_interface() || k->is_abstract()) failed: sanity
+JDK-8340306	Excluded: non-bug type 'Enhancement'	[JDK-8340306] Add border around instructions in PassFailJFrame
+JDK-8340308	Excluded: non-bug type 'Enhancement'	[JDK-8340308] PassFailJFrame: Make rows default to number of lines in instructions
+JDK-8340418	Excluded: non-bug type 'Enhancement'	[JDK-8340418] GHA: MacOS AArch64 bundles can be removed prematurely
+JDK-8340461	Excluded: documentation/test-only change	[JDK-8340461] Amend description for logArea
+JDK-8340590	Excluded: non-bug type 'Enhancement'	[JDK-8340590] RISC-V: C2: Small improvement to vector gather load and scatter store
+JDK-8340632	Excluded: documentation/test-only change	[JDK-8340632] ProblemList java/nio/channels/DatagramChannel/ for Macos
+JDK-8340684	Excluded: non-bug type 'Enhancement'	[JDK-8340684] Reading from an input stream backed by a closed ZipFile has no test coverage
+JDK-8340799	Excluded: non-bug type 'Enhancement'	[JDK-8340799] Add border inside instruction frame in PassFailJFrame
+JDK-8340804	Excluded: documentation/test-only change	[JDK-8340804] doc/building.md update Xcode instructions to note that full install is required
+JDK-8340812	Excluded: documentation/test-only change	[JDK-8340812] LambdaForm customization via MethodHandle::updateForm is not thread safe
+JDK-8340815	Excluded: non-bug type 'Enhancement'	[JDK-8340815] Add SECURITY.md file
+JDK-8341024	Excluded: documentation/test-only change	[JDK-8341024] [test] build/AbsPathsInImage.java fails with OOM when using ubsan-enabled binaries
+JDK-8341146	Excluded: non-bug type 'Enhancement'	[JDK-8341146] RISC-V: Unnecessary fences used for load-acquire in template interpreter
+JDK-8341235	Excluded: non-bug type 'Enhancement'	[JDK-8341235] Improve default instruction frame title in PassFailJFrame
+JDK-8341261	Excluded: non-bug type 'Enhancement'	[JDK-8341261] Tests assume UnlockExperimentalVMOptions is disabled by default
+JDK-8341562	Excluded: non-bug type 'Enhancement'	[JDK-8341562] RISC-V: Generate comments in -XX:+PrintInterpreter to link to source code
+JDK-8341688	Excluded: non-bug type 'Enhancement'	[JDK-8341688] Aarch64: Generate comments in -XX:+PrintInterpreter to link to source code
+JDK-8341722	Excluded: non-Windows platform(s): linux	[JDK-8341722] Fix some warnings as errors when building on Linux with toolchain clang
+JDK-8341806	Excluded: documentation/test-only change	[JDK-8341806] Gcc version detection failure on Alinux3
+JDK-8341927	Excluded: non-bug type 'Enhancement'	[JDK-8341927] Replace hardcoded security providers with new test.provider.name system property
+JDK-8341997	Excluded: documentation/test-only change	[JDK-8341997] Tests create files in src tree instead of scratch dir
+JDK-8342014	Excluded: performance-only change	[JDK-8342014] RISC-V: ZStoreBarrierStubC2 clobbers rflags
+JDK-8342409	Excluded: non-Windows platform(s): linux	[JDK-8342409] [s390x] C1 unwind_handler fails to unlock synchronized methods with LM_MONITOR
+JDK-8342496	Excluded: JVM stability/crash fix	[JDK-8342496] C2/Shenandoah: SEGV in compiled code when running jcstress
+JDK-8342607	Excluded: non-bug type 'Enhancement'	[JDK-8342607] Enhance register printing on x86_64 platforms
+JDK-8342701	Excluded: JVM stability/crash fix	[JDK-8342701] [PPC64] TestOSRLotsOfLocals.java crashes
+JDK-8342765	Excluded: non-bug type 'Enhancement'	[JDK-8342765] [21u] RTM tests assume UnlockExperimentalVMOptions is disabled by default
+JDK-8342823	Excluded: non-Windows platform(s): linux	[JDK-8342823] Ubsan: ciEnv.cpp:1614:65: runtime error: member call on null pointer of type 'struct CompileTask'
+JDK-8342962	Excluded: JVM stability/crash fix	[JDK-8342962] [s390x] TestOSRLotsOfLocals.java crashes
+JDK-8343285	Excluded: non-Windows platform(s): os_x	[JDK-8343285] java.lang.Process is unresponsive and CPU usage spikes to 100%
+JDK-8343506	Excluded: non-Windows platform(s): linux	[JDK-8343506] [s390x] multiple test failures with ubsan
+JDK-8343848	Excluded: documentation/test-only change	[JDK-8343848] Fix typo of property name in TestOAEPPadding after 8341927
+JDK-8343877	Excluded: documentation/test-only change	[JDK-8343877] Test AsyncClose.java intermittent fails - Socket.getInputStream().read() wasn't preempted
+JDK-8343884	Excluded: non-Windows platform(s): linux	[JDK-8343884] [s390x]  Disallow OptoScheduling
+JDK-8343923	Excluded: non-bug type 'Enhancement'	[JDK-8343923] GHA: Switch to Xcode 15 on MacOS AArch64 runners
+JDK-8344164	Excluded: documentation/test-only change	[JDK-8344164] [s390x] ProblemList hotspot/jtreg/runtime/NMT/VirtualAllocCommitMerge.java
+JDK-8344628	Excluded: documentation/test-only change	[JDK-8344628] Test TestEnableJVMCIProduct.java run with virtual thread intermittent fails
+JDK-8345055	Excluded: non-Windows platform(s): linux, aix	[JDK-8345055] [21u] ProblemList failing rtm tests on ppc platforms
+JDK-8347010	Excluded: meta change (version bump/designator)	[JDK-8347010] [21u] Remove designator DEFAULT_PROMOTED_VERSION_PRE=ea for release 21.0.6

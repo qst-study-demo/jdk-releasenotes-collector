@@ -1,0 +1,194 @@
+Title: [JDK-6942632] Hotspot should be able to use more than 64 logical processors on Windows
+Priority: P3
+Type: Enhancement
+Component: hotspot
+Description: Windows 7 and Windows Server 2008 R2 implement "processor groups" that, with some complication, allow a single process to use more than 64 hardware threads.  This mechanism is distinct from the NUMA mode facility, which focuses on allocating threads to NUMA domains, e.g., a single multi-core socket.  Without support for processor groups, a single jvm instance can't use more than 64 hw threads.
+
+
+
+
+
+See
+
+
+
+
+
+http://msdn.microsoft.com/en-us/library/dd405503(VS.85).aspx
+
+
+
+
+
+and
+
+
+
+
+
+http://msdn.microsoft.com/en-us/library/dd405503(VS.85).aspx
+
+
+
+
+
+and, for NUMA
+
+
+
+
+
+http://msdn.microsoft.com/en-us/library/aa363804(v=VS.85).aspx
+
+
+Linxux and Solaris have no such limitation.
+OS: windows_7
+
+-----
+Title: [JDK-8329353] ResolvedReferencesNotNullTest.java failed with Incorrect resolved references array, quxString should not be archived
+Priority: P2
+Type: Bug
+Component: hotspot
+Description: The following test failed in the JDK23 CI:
+
+
+
+
+
+runtime/cds/appcds/sharedStrings/ResolvedReferencesNotNullTest.java
+
+
+
+
+
+Here's a snippet from the log file:
+
+
+
+
+
+#section:driver
+
+
+----------messages:(7/254)----------
+
+
+command: driver ResolvedReferencesNotNullTest
+
+
+reason: User specified action: run driver ResolvedReferencesNotNullTest 
+
+
+started: Fri Mar 29 23:18:24 UTC 2024
+
+
+Mode: agentvm
+
+
+Agent id: 15
+
+
+finished: Fri Mar 29 23:19:03 UTC 2024
+
+
+elapsed time (seconds): 39.553
+
+
+----------configuration:(16/2450)----------
+
+
+
+
+
+
+
+
+
+
+
+----------System.out:(4/3396)----------
+
+
+Command line: [/opt/mach5/mesos/work_dir/jib-master/install/jdk-23+17-1315/linux-x64-debug.jdk/jdk-23/fastdebug/bin/java -cp /opt/mach5/mesos/work_dir/slaves/73e57426-9086-438c-bf1c-51bfaf1790ad-S39985/frameworks/1735e8a2-a1db-478c-8104-60c8b0af87dd-0196/executors/6ee1debb-2e98-4cb1-b157-0cf818d4870d/runs/197ab6a1-f376-40c1-b634-bf465ea0968d/testoutput/test-support/jtreg_open_test_hotspot_jtreg_hotspot_tier2_runtime/classes/5/runtime/cds/appcds/sharedStrings/ResolvedReferencesNotNullTest.d:/opt/mach5/mesos/work_dir/jib-master/install/jdk-23+17-1315/src.full/open/test/hotspot/jtreg/runtime/cds/appcds/sharedStrings:/opt/mach5/mesos/work_dir/slaves/73e57426-9086-438c-bf1c-51bfaf1790ad-S39985/frameworks/1735e8a2-a1db-478c-8104-60c8b0af87dd-0196/executors/6ee1debb-2e98-4cb1-b157-0cf818d4870d/runs/197ab6a1-f376-40c1-b634-bf465ea0968d/testoutput/test-support/jtreg_open_test_hotspot_jtreg_hotspot_tier2_runtime/classes/5/test/lib:/opt/mach5/mesos/work_dir/slaves/73e57426-9086-438c-bf1c-51bfaf1790ad-S39985/frameworks/1735e8a2-a1db-478c-8104-60c8b0af87dd-0196/executors/6ee1debb-2e98-4cb1-b157-0cf818d4870d/runs/197ab6a1-f376-40c1-b634-bf465ea0968d/testoutput/test-support/jtreg_open_test_hotspot_jtreg_hotspot_tier2_runtime/classes/5/test/hotspot/jtreg/runtime/cds/appcds:/opt/mach5/mesos/work_dir/jib-master/install/jtreg/7.3.1/1/bundles/jtreg-7.3.1+1.zip/jtreg/lib/jtreg.jar:/opt/mach5/mesos/work_dir/jib-master/install/jtreg/7.3.1/1/bundles/jtreg-7.3.1+1.zip/jtreg/lib/junit-platform-console-standalone-1.9.2.jar:/opt/mach5/mesos/work_dir/jib-master/install/jtreg/7.3.1/1/bundles/jtreg-7.3.1+1.zip/jtreg/lib/testng-7.3.0.jar:/opt/mach5/mesos/work_dir/jib-master/install/jtreg/7.3.1/1/bundles/jtreg-7.3.1+1.zip/jtreg/lib/jcommander-1.82.jar:/opt/mach5/mesos/work_dir/jib-master/install/jtreg/7.3.1/1/bundles/jtreg-7.3.1+1.zip/jtreg/lib/guice-5.1.0.jar -XX:MaxRAMPercentage=4.16667 -Dtest.boot.jdk=/opt/mach5/mesos/work_dir/jib-master/install/jdk/21/35/bundles/linux-x64/jdk-21_linux-x64_bin.tar.gz/jdk-21 -Djava.io.tmpdir=/opt/mach5/mesos/work_dir/slaves/73e57426-9086-438c-bf1c-51bfaf1790ad-S39985/frameworks/1735e8a2-a1db-478c-8104-60c8b0af87dd-0196/executors/6ee1debb-2e98-4cb1-b157-0cf818d4870d/runs/197ab6a1-f376-40c1-b634-bf465ea0968d/testoutput/test-support/jtreg_open_test_hotspot_jtreg_hotspot_tier2_runtime/tmp -Xcomp -ea -esa -XX:CompileThreshold=100 -XX:+UnlockExperimentalVMOptions -server -XX:+TieredCompilation -cp /opt/mach5/mesos/work_dir/slaves/73e57426-9086-438c-bf1c-51bfaf1790ad-S39985/frameworks/1735e8a2-a1db-478c-8104-60c8b0af87dd-0196/executors/6ee1debb-2e98-4cb1-b157-0cf818d4870d/runs/197ab6a1-f376-40c1-b634-bf465ea0968d/testoutput/test-support/jtreg_open_test_hotspot_jtreg_hotspot_tier2_runtime/scratch/0/test.jar -Xbootclasspath/a:/opt/mach5/mesos/work_dir/slaves/73e57426-9086-438c-bf1c-51bfaf1790ad-S39985/frameworks/1735e8a2-a1db-478c-8104-60c8b0af87dd-0196/executors/6ee1debb-2e98-4cb1-b157-0cf818d4870d/runs/197ab6a1-f376-40c1-b634-bf465ea0968d/testoutput/test-support/jtreg_open_test_hotspot_jtreg_hotspot_tier2_runtime/scratch/0/whitebox.jar -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI ResolvedReferencesWb false ]
+
+
+[2024-03-29T23:18:24.429762282Z] Gathering output for process 2540024
+
+
+[2024-03-29T23:18:24.438787921Z] Waiting for completion for process 2540024
+
+
+[2024-03-29T23:19:03.834958489Z] Waiting for completion finished for process 2540024
+
+
+----------System.err:(22/1034)----------
+
+
+ stdout: [Resolved References Array Length: 3
+
+
+quxString
+
+
+fooString
+
+
+barString
+
+
+];
+
+
+ stderr: [Exception in thread "main" java.lang.RuntimeException: Incorrect resolved references array, quxString should not be archived
+
+
+	at ResolvedReferencesWb.throwException(ResolvedReferencesWb.java:81)
+
+
+	at ResolvedReferencesWb.main(ResolvedReferencesWb.java:71)
+
+
+]
+
+
+ exitValue = 1
+
+
+
+
+
+java.lang.RuntimeException: Expected to get exit value of [0], exit value is: [1]
+
+
+	at jdk.test.lib.process.OutputAnalyzer.shouldHaveExitValue(OutputAnalyzer.java:521)
+
+
+	at ResolvedReferencesNotNullTest.main(ResolvedReferencesNotNullTest.java:54)
+
+
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+
+
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+
+
+	at com.sun.javatest.regtest.agent.MainActionHelper$AgentVMRunnable.run(MainActionHelper.java:333)
+
+
+	at java.base/java.lang.Thread.run(Thread.java:1575)
+
+
+
+
+
+JavaTest Message: Test threw exception: java.lang.RuntimeException
+
+
+JavaTest Message: shutting down test
+
+
+
+
+
+result: Failed. Execution failed: `main' threw exception: java.lang.RuntimeException: Expected to get exit value of [0], exit value is: [1]
+OS: linux

@@ -1,0 +1,3014 @@
+Title: [JDK-6956385] URLConnection.getLastModified() leaks file handles for jar:file and file: URLs
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: FULL PRODUCT VERSION :
+java version "1.6.0_20"
+Java(TM) SE Runtime Environment (build 1.6.0_20-b02)
+Java HotSpot(TM) Client VM (build 16.3-b01, mixed mode, sharing)
+ADDITIONAL OS VERSION INFORMATION :
+Ubuntu 7.04
+Linux coconut 2.6.20-16-server #2 SMP Fri Aug 31 01:01:45 UTC 2007 i686 GNU/Linux
+also reproduced on:
+Windows 7 Professional 64-bit
+Microsoft Windows [Version 6.1.7600]
+A DESCRIPTION OF THE PROBLEM :
+Using the getLastModified() call on a URLConnection for jar:file: or file: URLs causes file handles to remain open. When performing many of these calls in quick succession, the operating system can easily hit the open file handles limit. E.g., on an Ubuntu Linux install, the system-wide open file limit is 1024 by default, out of which a large portion may already be consumed by other processes.
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+Open a jar:file: URL connection. E.g. run getClass().getResource("META-INF/MANIFEST.MF").openConnection(). This returns a sun.net.www.protocol.jar.JarURLConnection.
+On this URL connection, run getLastModified().
+This runs, in sequence,
+java.net.URLConnection.getHeaderFieldDate(),
+sun.net.www.protocol.jar.JarURLConnection.getHeaderField(),
+sun.net.www.protocol.file.FileURLConnection.getHeaderField(),
+sun.net.www.protocol.file.FileURLConnection.initializeHeaders(),
+sun.net.www.protocol.file.FileURLConnection.connect().
+This last call, opens a FileInputStream which is not closed, further on.
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+The getLastModified() call does not cause a file handle to be opened, or closes it  before returning.
+ACTUAL -
+A file handle remains open.
+REPRODUCIBILITY :
+This bug can be reproduced always.
+---------- BEGIN SOURCE ----------
+// NOTE: This code snippet should be run on a platform where the 'lsof' command is available (e.g. Linux).
+// The problem is present on Windows, but it is not as easy to show the number of open files to expose the problem.
+private void exposeFileHandleLeakOnJarUrlConnection() throws InterruptedException, IOException {
+URL jarUrl = LastModifiedBugExposer.class.getResource("/META-INF/MANIFEST.MF");
+printNumberOfOpenFiles("jar");
+for (int i = 0; i
+OS: windows_7
+
+-----
+Title: [JDK-8136895] Writer not closed with disk full error, file resource leaked
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: FULL PRODUCT VERSION :
+java version "1.8.0_45"
+Java(TM) SE Runtime Environment (build 1.8.0_45-b14)
+Java HotSpot(TM) 64-Bit Server VM (build 25.45-b02, mixed mode)
+ADDITIONAL OS VERSION INFORMATION :
+Linux  3.2.45-0.6.acc.624.45.283.amzn1acc.x86_64 #1 SMP Fri Nov 21 22:39:25 UTC 2014 x86_64 x86_64 x86_64 GNU/Linux
+A DESCRIPTION OF THE PROBLEM :
+When writing to a file and a disk full condition occurs, the file is not properly closed and the handle is leaked even though a try-with-resources is used.
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+use Files.newBufferedWriter() in a try with resources construct.  Write until disk full.  Check to see if file has been properly closed by checking open files.
+You can check open files on Linux like this:
+sudo lsof -a +L1 /
+(grep for the filename)
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+File should not be open, because the try with resources construct should have closed the file.
+ACTUAL -
+File remains open as reported by:  sudo lsof -a +L1 /
+ERROR MESSAGES/STACK TRACES THAT OCCUR :
+This exception is generated:
+java.io.IOException: No space left on device
+at sun.nio.ch.FileDispatcherImpl.write0(Native Method)
+at sun.nio.ch.FileDispatcherImpl.write(FileDispatcherImpl.java:60)
+at sun.nio.ch.IOUtil.writeFromNativeBuffer(IOUtil.java:93)
+at sun.nio.ch.IOUtil.write(IOUtil.java:65)
+at sun.nio.ch.FileChannelImpl.write(FileChannelImpl.java:210)
+at java.nio.channels.Channels.writeFullyImpl(Channels.java:78)
+at java.nio.channels.Channels.writeFully(Channels.java:101)
+at java.nio.channels.Channels.access$000(Channels.java:61)
+at java.nio.channels.Channels$1.write(Channels.java:174)
+at sun.nio.cs.StreamEncoder.writeBytes(StreamEncoder.java:221)
+at sun.nio.cs.StreamEncoder.implWrite(StreamEncoder.java:282)
+at sun.nio.cs.StreamEncoder.write(StreamEncoder.java:125)
+at java.io.OutputStreamWriter.write(OutputStreamWriter.java:207)
+at java.io.BufferedWriter.flushBuffer(BufferedWriter.java:129)
+at java.io.BufferedWriter.write(BufferedWriter.java:230)
+at java.io.Writer.write(Writer.java:157)
+[... snip application level info ...]
+Suppressed: java.io.IOException: No space left on device
+at sun.nio.ch.FileDispatcherImpl.write0(Native Method)
+at sun.nio.ch.FileDispatcherImpl.write(FileDispatcherImpl.java:60)
+at sun.nio.ch.IOUtil.writeFromNativeBuffer(IOUtil.java:93)
+at sun.nio.ch.IOUtil.write(IOUtil.java:65)
+at sun.nio.ch.FileChannelImpl.write(FileChannelImpl.java:210)
+at java.nio.channels.Channels.writeFullyImpl(Channels.java:78)
+at java.nio.channels.Channels.writeFully(Channels.java:101)
+at java.nio.channels.Channels.access$000(Channels.java:61)
+at java.nio.channels.Channels$1.write(Channels.java:174)
+at sun.nio.cs.StreamEncoder.writeBytes(StreamEncoder.java:221)
+at sun.nio.cs.StreamEncoder.implClose(StreamEncoder.java:316)
+at sun.nio.cs.StreamEncoder.close(StreamEncoder.java:149)
+at java.io.OutputStreamWriter.close(OutputStreamWriter.java:233)
+at java.io.BufferedWriter.close(BufferedWriter.java:266)
+[... snip application level info ...]
+... 4 more
+REPRODUCIBILITY :
+This bug can be reproduced always.
+---------- BEGIN SOURCE ----------
+Run this junit test.  Set the path to a disk with limited space to save time.  When disk is full, the IOException will be printed.  Then, while the test continues to sleep, before termination, check for open files.
+-----------------------------------
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import org.junit.Test;
+public class DiskFullTest {
+@Test
+public void diskFullTest() throws IOException, InterruptedException {
+StringBuffer text = new StringBuffer();
+for (int i = 0;  i
+OS: generic
+
+-----
+Title: [JDK-8180450] secondary_super_cache does not scale well
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: On some workloads, updates to the Klass::secondary_super_cache field
+cause excessive cache line invalidation traffic, with noticeable slowdowns.
+Specifically, the cache itself may become unstable (which is a normal corner case for one-element caches) and at that point a multi-threaded application may begin "hammering" on the cache line from multiple threads, causing an explosion of coherence traffic.
+One customer reported this as happening when multiple threads were traversing heterogeneous sequences of objects, testing the same classes against more than one interface, with rapid variation between the interfaces.
+In such a case, two interfaces could compete to use the single SSC slot on each class that occurs in the object sequence.  The competition would turn into frequent updating of the SSC slots by multiple threads, causing cache lines to ping-pong between processors.
+To fix this, the SSC has to have some sort of limit on its update rate, or be replaced by a mechanism that scales better.
+The simplest fix is probably to put an "update count" profile counter somewhere, and consult that counter just before updating the SSC.  If the counter is too high (evidence of a high contention rate), don't update the SSC.  The trade-off is between linear searches of the Klass::secondary_supers array (which is stable and therefore replicated across caches) versus time spent waiting to acquire write access to the SSC (which may be hundreds of cycles).  Linear search will easily win in those cases, except of course for very dense dynamic query mixes over very complex interface graphs, which is a corner case we can leave for the future.
+The obvious place to put the update count is next to the SSC, on the same cache line.  When the miss count overflows past some selected threshold, the SSC is left unchanged.  On balance the extra footprint of a 32-bit field per Klass seems acceptable.
+Such a counter should be allowed to decay, so that temporary bursts in type test complexity do not shut down the SSC forever.
+Another possible fix would be a thread-local update counter for the SSC, under JavaThread::current.  In that case, only Java code could use the extra fix to avoid cache contention, but that is probably acceptable also.  This fix would be significantly more complex, but would have the benefit that only "offending" threads would throttle themselves.
+Similarly, the counter could be placed in the MethodData object which carries the profile of the instruction which is causing the SSC contention.  (This instruction could be instanceof, checkcast, aastore, or a call to an intrinsic method that emulates one of those.)  This fix would be even more complex than the thread-based fix, and would probably be overkill given the relatively small importance of the problem.
+If the secondary_supers lists ever grow in length to more than a few tens of elements, additional mechanisms may be needed for quickly testing the subtype relation.  Probably a tree walk would be sufficient.  Sometimes unified caches (global or thread-local) are proposed, or perhaps unified numbering schemes, but those, also, seem overkill for this problem.
+
+-----
+Title: [JDK-8200566] DistributionPointFetcher fails to fetch CRLs if the DistributionPoints field contains more than one DistributionPoint and the first one fails
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: FULL PRODUCT VERSION :
+ADDITIONAL OS VERSION INFORMATION :
+Microsoft Windows [Version 10.0.14393]
+The codepath is such that this affects other OSes, as well.
+A DESCRIPTION OF THE PROBLEM :
+I've created a Certificate which contain two CRLDistributionPoint in the CRLDistributionPoints field. These are two separate HTTP web servers, which provide the same CRL.
+I see the following happen when I use the PKIX CertPathValidator:
+If the first listed endpoint is unavailable (causing an IOException either by blocking the port in the firewall or shutting down the software), then revocation checking will fail even though the CRL is available on the next CRL DistributionPoint.
+From what I can determine, the cause is that the for-loop in: http://hg.openjdk.java.net/jdk/jdk/file/71c04702a3d5/src/java.base/share/classes/sun/security/provider/certpath/DistributionPointFetcher.java#l134
+will exit early with an exception and never check the second CRL DistributionPoint.
+The result of the failure is stored in the CRL cache. If the underlying URICertStore is called within the CRL Check Interval, then the same method (which otherwise throws the exception) will return an empty collection instead and the second DistributionPoint is checked as expected.
+This was observed in JRE 8u144 but the same for-loop is present in the latest JDK.
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+1. Create a certificate with multiple HTTP Endpoints stored in different DistributionPoint fields
+2. Make the CRL available on the second HTTP Endpoint and ensure that the first endpoint is unavailable.
+3. Setup the PKIX CerthPathValidator
+4. Validate the created Certificate against the PKIX CertPathValidator
+5. Validate the created Certificate a second time (within 30 second) against the PKIX CertPathValidator.
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+Both validation checks should succeed.
+ACTUAL -
+The first validation check fails with an "Unable to determine revocation status due to network error".
+The second validation check fetches the CRL from the second distribution point and succeeds the revocation checking.
+REPRODUCIBILITY :
+This bug can be reproduced always.
+CUSTOMER SUBMITTED WORKAROUND :
+Only specify one CRL DistributionPoint in certificates.
+OS: generic
+
+-----
+Title: [JDK-8210471] GZIPInputStream constructor could leak an un-end()ed Inflater
+Priority: P3
+Type: Bug
+Component: core-libs
+Description: Colleague Tobias Thierer writes:
+=====
+When the constructor GZIPInputStream(InputStream,int) throws an exception (eg. when encountering invalid data), the Inflater constructed earlier is not end()ed before it becomes eligible for garbage collection. This means that the Inflater's zsref is not reliably cleared (relies on finalization alone).
+The patch below fixes this problem in the case of Exception; in the case of  Error, it still leaves the Inflater in un-end()ed state.
+--- a/src/java.base/share/classes/java/util/zip/GZIPInputStream.java    Thu Jun 21 08:58:59 2018 -0300
++++ b/src/java.base/share/classes/java/util/zip/GZIPInputStream.java    Thu Sep 06 14:15:23 2018 +0100
+@@ -77,7 +77,12 @@
+public GZIPInputStream(InputStream in, int size) throws IOException {
+super(in, new Inflater(true), size);
+usesDefaultInflater = true;
+-        readHeader(in);
++        try {
++            readHeader(in);
++        } catch (Exception e) {
++            inf.end();
++            throw e;
++        }
+}
+/**
+
+-----
+Title: [JDK-8211400] nsk.share.gc.Memory::getArrayLength returns wrong value
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: nsk.share.gc.Memory::getArrayLength estimates array size as '(memory - extraSize) / (objectSize + referenceSize)'. this formula is incorrect, since array doesn't use reference for each element.
+the correct formula is '(memory - extraSize) / objectSize'
+nsk.share.gc.Memory::getArraySize should be fixed correspondingly
+
+-----
+Title: [JDK-8258483] [TESTBUG] gtest CollectorPolicy.young_scaled_initial_ergo_vm fails if heap is too small
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: If gtests are started with a small heap, this gtest fails:
+```
+thomas@mainframe:/shared/projects/openjdk/jdk-jdk/output-fastdebug$ ./hotspot/variant-server/libjvm/gtest/gtestLauncher -Xmx128m  -jdk:./images/jdk   --gtest_filter=CollectorPolicy.young_scaled_initial_ergo_vm
+Note: Google Test filter = CollectorPolicy.young_scaled_initial_ergo_vm
+[==========] Running 1 test from 1 test case.
+[----------] Global test environment set-up.
+[----------] 1 test from CollectorPolicy
+[ RUN      ] CollectorPolicy.young_scaled_initial_ergo_vm
+[0,118s][warning][gc,ergo] Inconsistency between generation sizes and heap size, resizing the generations to fit the heap.
+/shared/projects/openjdk/jdk-jdk/source/test/hotspot/gtest/gc/shared/test_collectorPolicy.cpp:124: Failure
+Expected equality of these values:
+expected
+Which is: 34930688
+NewSize
+Which is: 54525952
+/shared/projects/openjdk/jdk-jdk/source/test/hotspot/gtest/gc/shared/test_collectorPolicy.cpp:80: Failure
+Expected: checker-execute() doesn't generate new fatal failures in the current thread.
+Actual: it does.
+[  FAILED  ] CollectorPolicy.young_scaled_initial_ergo_vm (0 ms)
+[----------] 1 test from CollectorPolicy (119 ms total)
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test case ran. (119 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] CollectorPolicy.young_scaled_initial_ergo_vm
+```
+It would be nice if the test would just be ignored if it cannot be run under these circumstances.
+
+-----
+Title: [JDK-8267174] Many test files have the wrong Copyright header
+Priority: P4
+Type: Bug
+Component: infrastructure
+Description: There are approximately 580 test files in the jdk repo with some erroneous license text.
+The extra text that must be removed from those test files is:
+'''  Oracle designates this particular file as subject to the "Classpath" exception as provided by Oracle in the LICENSE file that accompanied this code. '''
+To find those files, one may use the following query in the root of the open repo:
+```
+grep -rl '"Classpath" exception' * | grep "^test/"
+```
+
+-----
+Title: [JDK-8270269] Desktop.browse method fails if earlier CoInitialize call as COINIT_MULTITHREADED
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: ADDITIONAL SYSTEM INFORMATION :
+Windows / Window 10/ JDK 16 and JDK 17ea
+A DESCRIPTION OF THE PROBLEM :
+Desktop.browse native peer implementation attempts to CoInitializeEx as COINIT_APARTMENTTHREADED and will fail if there has been a prior call (eg. via JNI)  to CoInitialize as COINIT_MULTITHREADED. This problem is new in JDK 16/17ea - see awt_Desktop.cpp:88 in JDK source for point of failure.
+REGRESSION : Last worked in version 15
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+Create a native /JNI call that calls CoInitializeEx(NULL, COINIT_MULTITHREADED) and call the native prior to calling Dekstop.getDesktop().browse(url).
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+URL will open in system assigned browser (JDK 15 and earlier)
+ACTUAL -
+Exception in thread "main" java.io.IOException: Failed to open https://www.google.com. Error message: CoInitializeEx() failed.
+at java.desktop/sun.awt.windows.WDesktopPeer.ShellExecute(WDesktopPeer.java:115)
+at java.desktop/sun.awt.windows.WDesktopPeer.browse(WDesktopPeer.java:101)
+at java.desktop/java.awt.Desktop.browse(Desktop.java:530)
+....
+---------- BEGIN SOURCE ----------
+// approximate example cpp and java since not sure what is expected for
+// a native/java bug  test case
+---- native ---
+void Demo::initCom() {
+HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+if (hr != S_FALSE)
+EXIT_ON_ERROR(hr);    // some sort of handling
+}
+-- java ---
+public static void main(String [] args) throws URISyntaxException, IOException {
+Demo.initCom();
+Desktop desktop = Desktop.getDesktop();
+desktop.browse(new URI("https://www.google.com"));
+}
+---------- END SOURCE ----------
+CUSTOMER SUBMITTED WORKAROUND :
+No workaround found.
+FREQUENCY : always
+OS: windows
+
+-----
+Title: [JDK-8276995] Bug in jdk.jfr.event.gc.collection.TestSystemGC
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: A DESCRIPTION OF THE PROBLEM :
+In jdk.jfr.event.gc.collection.TestSystemGC the following line is repeated 3 times:
+Events.assertField(event1, "invokedConcurrent").isEqual(concurrent);
+The 2nd and 3rd occurrences should check 'event2' and 'event3' instead of 'event1'.
+OS: generic
+
+-----
+Title: [JDK-8286789] Test forceEarlyReturn002.java timed out
+Priority: P4
+Type: Bug
+Component: core-svc
+Description: Entire packet (11 bytes):
+0000: 00 00 00 0b 00 00 00 36 80 00 00                  .......6...
+Packet end
+Checking reply packet header
+Parsing reply packet:
+Received signal from debugee: ready
+Sending signal to debugee: quit
+Waiting for debugee exits
+Timeout refired 480 times
+OS: windows
+
+-----
+Title: [JDK-8307318] Test serviceability/sa/ClhsdbCDSJstackPrintAll.java failed: ArrayIndexOutOfBoundsException
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: stderr: [Error: java.lang.ArrayIndexOutOfBoundsException: -1 2
+java.lang.ArrayIndexOutOfBoundsException: -1 2
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.ResolvedIndyArray.getAt(ResolvedIndyArray.java:60)
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.ConstantPoolCache.getIndyEntryAt(ConstantPoolCache.java:91)
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.ConstantPool.implNameAndTypeRefIndexAt(ConstantPool.java:315)
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.ConstantPool.implGetSignatureRefAt(ConstantPool.java:288)
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.ConstantPool.getSignatureRefAt(ConstantPool.java:280)
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.GenerateOopMap.doMethod(GenerateOopMap.java:1730)
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.GenerateOopMap.interp1(GenerateOopMap.java:1385)
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.GenerateOopMap.interpBB(GenerateOopMap.java:802)
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.GenerateOopMap.interpAll(GenerateOopMap.java:1108)
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.GenerateOopMap.doInterpretation(GenerateOopMap.java:981)
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.GenerateOopMap.computeMap(GenerateOopMap.java:2198)
+at jdk.hotspot.agent/sun.jvm.hotspot.interpreter.OopMapForCacheEntry.computeMap(OopMapForCacheEntry.java:80)
+at jdk.hotspot.agent/sun.jvm.hotspot.interpreter.OopMapCacheEntry.fill(OopMapCacheEntry.java:53)
+at jdk.hotspot.agent/sun.jvm.hotspot.oops.Method.getMaskFor(Method.java:257)
+at jdk.hotspot.agent/sun.jvm.hotspot.runtime.InterpretedVFrame.getLocals(InterpretedVFrame.java:53)
+at jdk.hotspot.agent/sun.jvm.hotspot.ui.classbrowser.HTMLGenerator.genHTMLForJavaStackTrace(HTMLGenerator.java:1936)
+at jdk.hotspot.agent/sun.jvm.hotspot.CommandProcessor$45.doit(CommandProcessor.java:1660)
+at jdk.hotspot.agent/sun.jvm.hotspot.CommandProcessor.executeCommand(CommandProcessor.java:2212)
+at jdk.hotspot.agent/sun.jvm.hotspot.CommandProcessor.executeCommand(CommandProcessor.java:2182)
+at jdk.hotspot.agent/sun.jvm.hotspot.CommandProcessor.run(CommandProcessor.java:2053)
+at jdk.hotspot.agent/sun.jvm.hotspot.CLHSDB.run(CLHSDB.java:112)
+at jdk.hotspot.agent/sun.jvm.hotspot.CLHSDB.main(CLHSDB.java:44)
+at jdk.hotspot.agent/sun.jvm.hotspot.SALauncher.runCLHSDB(SALauncher.java:281)
+at jdk.hotspot.agent/sun.jvm.hotspot.SALauncher.main(SALauncher.java:500)
+
+-----
+Title: [JDK-8308033] The jcmd thread dump related tests should test virtual threads
+Priority: P4
+Type: Bug
+Component: core-svc
+Description: There are a few jcmd tests that verify stack dumps. They fail with the virtual thread test factory because virtual threads are not included in stack dumps. Need to fix them when jcmd has corresponding options, or avoid running them with virtual threads.
+Tests:
+sun/tools/jcmd/JcmdOutputEncodingTest.java
+serviceability/dcmd/thread/PrintConcurrentLocksTest.java
+serviceability/dcmd/thread/PrintTest.java
+serviceability/dcmd/thread/ThreadDumpToFileTest.java
++
+
+-----
+Title: [JDK-8309667] TLS handshake fails because of ConcurrentModificationException in PKCS12KeyStore.engineGetEntry
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: Many HTTPClient tests are occasionally failing with the following stack trace:
+javax.net.ssl.SSLHandshakeException: No available authentication scheme
+at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:130)
+at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:117)
+at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:365)
+at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:321)
+at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:312)
+at java.base/sun.security.ssl.CertificateMessage$T13CertificateProducer.onProduceCertificate(CertificateMessage.java:967)
+at java.base/sun.security.ssl.CertificateMessage$T13CertificateProducer.produce(CertificateMessage.java:956)
+at java.base/sun.security.ssl.SSLHandshake.produce(SSLHandshake.java:437)
+at java.base/sun.security.ssl.ClientHello$T13ClientHelloConsumer.goServerHello(ClientHello.java:1245)
+at java.base/sun.security.ssl.ClientHello$T13ClientHelloConsumer.consume(ClientHello.java:1181)
+at java.base/sun.security.ssl.ClientHello$ClientHelloConsumer.onClientHello(ClientHello.java:839)
+at java.base/sun.security.ssl.ClientHello$ClientHelloConsumer.consume(ClientHello.java:800)
+at java.base/sun.security.ssl.SSLHandshake.consume(SSLHandshake.java:393)
+at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:476)
+at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:447)
+at java.base/sun.security.ssl.TransportContext.dispatch(TransportContext.java:201)
+at java.base/sun.security.ssl.SSLTransport.decode(SSLTransport.java:172)
+at java.base/sun.security.ssl.SSLSocketImpl.decode(SSLSocketImpl.java:1506)
+at java.base/sun.security.ssl.SSLSocketImpl.readHandshakeRecord(SSLSocketImpl.java:1421)
+at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:455)
+at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:426)
+at jdk.httpclient.test.lib.http2.Http2TestServerConnection.handshake(Http2TestServerConnection.java:317)
+at jdk.httpclient.test.lib.http2.Http2TestServerConnection.(Http2TestServerConnection.java:165)
+at jdk.httpclient.test.lib.http2.Http2TestServer.createConnection(Http2TestServer.java:389)
+at jdk.httpclient.test.lib.http2.Http2TestServer$AcceptedConnection.startConnection(Http2TestServer.java:306)
+The failing tests include:
+java/net/httpclient/ManyRequests.java
+java/net/httpclient/ManyRequests2.java
+java/net/httpclient/LargeResponseTest.java
+Additional logging revealed that the handshake failures were caused by this exception:
+java.util.ConcurrentModificationException
+at java.base/java.util.HashMap$HashIterator.nextNode(HashMap.java:1605)
+at java.base/java.util.HashMap$KeyIterator.next(HashMap.java:1628)
+at java.base/java.util.AbstractCollection.addAll(AbstractCollection.java:337)
+at java.base/java.util.HashSet.(HashSet.java:121)
+at java.base/java.security.KeyStore$PrivateKeyEntry.(KeyStore.java:569)
+at java.base/sun.security.pkcs12.PKCS12KeyStore.engineGetEntry(PKCS12KeyStore.java:1338)
+at java.base/sun.security.util.KeyStoreDelegator.engineGetEntry(KeyStoreDelegator.java:174)
+at java.base/java.security.KeyStore.getEntry(KeyStore.java:1576)
+at java.base/sun.security.ssl.X509KeyManagerImpl.getEntry(X509KeyManagerImpl.java:271)
+at java.base/sun.security.ssl.X509KeyManagerImpl.getPrivateKey(X509KeyManagerImpl.java:117)
+at java.base/sun.security.ssl.X509Authentication.createServerPossession(X509Authentication.java:300)
+at java.base/sun.security.ssl.X509Authentication.createPossession(X509Authentication.java:195)
+at java.base/sun.security.ssl.CertificateMessage$T13CertificateProducer.choosePossession(CertificateMessage.java:1056)
+at java.base/sun.security.ssl.CertificateMessage$T13CertificateProducer.onProduceCertificate(CertificateMessage.java:965)
+which in turn is caused by PKCS12KeyStore.getAttributes updating the same HashSet over and over again in multiple threads.
+
+-----
+Title: [JDK-8310643] Misformatted copyright messages in FFM
+Priority: P5
+Type: Bug
+Component: core-libs
+Description: Many of the copyright messages in the FFM API and implementation classes are not well formatted. We should have the same messages in all files. This includes test files as well.
+
+-----
+Title: [JDK-8312246] NPE when HSDB visits bad oop
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: During investigation of a customer core file with graphic SA, it printed in stack memory:
+````
+Error while performing oopsDo for frame sp: 0x00007f2c602378f0, unextendedSP: 0x00007f2c602378f0, fp: 0x00007f2c60237938, pc: 0x00007f2c47e2b88a
+java.lang.NullPointerException: Cannot invoke "sun.jvm.hotspot.gc.g1.HeapRegion.isFree()" because "region" is null
+at jdk.hotspot.agent/sun.jvm.hotspot.HSDB$34$1.addAnnotation(HSDB.java:1099)
+at jdk.hotspot.agent/sun.jvm.hotspot.HSDB$34$1.visitAddress(HSDB.java:1059)
+at jdk.hotspot.agent/sun.jvm.hotspot.runtime.InterpreterFrameClosure.offsetDo(Frame.java:675)
+at jdk.hotspot.agent/sun.jvm.hotspot.interpreter.OopMapCacheEntry.iterateOop(OopMapCacheEntry.java:38)
+at jdk.hotspot.agent/sun.jvm.hotspot.runtime.Frame.oopsInterpretedDo(Frame.java:591)
+at jdk.hotspot.agent/sun.jvm.hotspot.runtime.Frame.oopsDo(Frame.java:442)
+at jdk.hotspot.agent/sun.jvm.hotspot.HSDB$34.run(HSDB.java:1052)
+at jdk.hotspot.agent/sun.jvm.hotspot.utilities.WorkerThread$MainLoop.run(WorkerThread.java:70)
+at java.base/java.lang.Thread.run(Thread.java:1570
+﻿﻿````
+The reproducer is attached.
+1. Compile and launch it with G1 enabled.
+2. Attach HSDB
+3. Select "main" thread
+4. Click "Stack Memory" icon on "Java Threads" toolbar.
+The fix is trivial (will create PR soon):
+diff --git a/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/HSDB.java b/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/HSDB.java
+index 9cc51934d08..e59c3da379e 100644
+--- a/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/HSDB.java
++++ b/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/HSDB.java
+@@ -1096,7 +1096,9 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
+G1CollectedHeap heap = (G1CollectedHeap)collHeap;
+HeapRegion region = heap.hrm().getByAddress(handle);
+-                          if (region.isFree()) {
++                          if (region == null) {
++                              anno = "NOTG1REGION";
++                          } else if (region.isFree()) {
+anno = "Free ";
+bad = false;
+} else if (region.isYoung()) {
+
+-----
+Title: [JDK-8312475] org.jline.util.PumpReader signed byte problem
+Priority: P4
+Type: Bug
+Component: tools
+Description: SonarCloud reports a problem in PumpReader here:
+https://github.com/openjdk/jdk/blob/354c6605e32790ca421869636d8bf5456fc51717/src/jdk.internal.le/share/classes/jdk/internal/org/jline/utils/PumpReader.java#L417
+@Override
+public int read() throws IOException {
+if (!buffer.hasRemaining() && !readUsingBuffer()) {
+return EOF;
+}
+return buffer.get(); //
+
+-----
+Title: [JDK-8313290] Misleading exception message from STS.Subtask::get when task forked after shutdown
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: ADDITIONAL SYSTEM INFORMATION :
+Ubuntu 22.04
+openjdk 21-ea 2023-09-19
+OpenJDK Runtime Environment (build 21-ea+32-2482)
+OpenJDK 64-Bit Server VM (build 21-ea+32-2482, mixed mode, sharing)
+A DESCRIPTION OF THE PROBLEM :
+When using a StructuredTaskScope after shutdown, I get a misleading error message when calling Subtask.get(): "IllegalStateException: Owner did not join after forking subtasks".
+See example code below. In the code, join() is called right before Subtask.get(), so the error message is clearly not incorrect (in addition to not being helpful).
+I'd expect an exception that indicates that the StructuredTaskScope is already shutdown.
+Obviously, this is a rather unlikely usage pattern (shutdown() + fork()), but there might be more meaningful cases where this occurs, and then a better exception message might be helpful.
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+See example code.
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+An exception that indicates that the StructuredTaskScope is shutdown.
+ACTUAL -
+Exception in thread "main" java.lang.IllegalStateException: Owner did not join after forking subtasks
+at java.base/java.util.concurrent.StructuredTaskScope.newIllegalStateExceptionNoJoin(StructuredTaskScope.java:439)
+at java.base/java.util.concurrent.StructuredTaskScope.ensureJoinedIfOwner(StructuredTaskScope.java:477)
+at java.base/java.util.concurrent.StructuredTaskScope$SubtaskImpl.get(StructuredTaskScope.java:927)
+at com.example.Test.main(Test.java:17)
+---------- BEGIN SOURCE ----------
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.StructuredTaskScope;
+public class Test {
+public static void main(String[] args) {
+try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
+scope.shutdown();
+StructuredTaskScope.Subtask subtask = scope.fork(() - "result");
+scope.join().throwIfFailed();
+subtask.get(); // IllegalStateException: Owner did not join after forking subtasks
+} catch (InterruptedException | ExecutionException e) {
+throw new RuntimeException(e);
+}
+}
+}
+---------- END SOURCE ----------
+FREQUENCY : always
+OS: generic
+
+-----
+Title: [JDK-8313654] Test WaitNotifySuspendedVThreadTest.java timed out
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: Possibly a different manifestation of JDK-8313570
+----------System.out:(9/354)----------
+setting event callbacks ...
+setBreakpoint: started
+setBreakpoint: finished
+Main thread: suspending virtual and carrier threads
+Main thread: calling monitor.notifyAll()
+Main thread: resuming virtual thread
+Main thread: before monitor_completed.wait()
+Breakpoint: before monitor.wait(): methBreakpoint in virtual thread
+Timeout refired 1200 times
+----------System.err:(0/0)----------
+----------rerun:(51/7397)*----------
+
+-----
+Title: [JDK-8314236] Overflow in Collections.rotate
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: An integer overflow/wraparound in Collections.rotate() can lead to IndexOutOfBoundsException. Reproducer:
+// need something like -Xmx16g
+Collections.rotate(new ArrayList(Collections.nCopies((1https://github.com/openjdk/jdk/pull/15270
+
+-----
+Title: [JDK-8314319] LogCompilation doesn't reset lateInlining when it encounters a failure.
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: here is the stacktrace.
+➜  LogCompilation git:(master) ✗ java -jar ./target/LogCompilation-1.0-SNAPSHOT.jar jit.xml
+java.lang.InternalError: Unexpected method mismatch during late inlining (method at call site: java.util.LinkedHashMap$LinkedHashIterator::hasNext (13 bytes), method being parsed: java.util.AbstractCollection::addAll (42 bytes)) at 29018:56
+at com.sun.hotspot.tools.compiler.LogParser.reportInternalError(LogParser.java:643)
+at com.sun.hotspot.tools.compiler.LogParser.reportInternalError(LogParser.java:623)
+at com.sun.hotspot.tools.compiler.LogParser.startElement(LogParser.java:1224)
+at java.xml/com.sun.org.apache.xerces.internal.parsers.AbstractSAXParser.startElement(AbstractSAXParser.java:518)
+at java.xml/com.sun.org.apache.xerces.internal.impl.XMLDocumentFragmentScannerImpl.scanStartElement(XMLDocumentFragmentScannerImpl.java:1407)
+at java.xml/com.sun.org.apache.xerces.internal.impl.XMLDocumentFragmentScannerImpl$FragmentContentDriver.next(XMLDocumentFragmentScannerImpl.java:2726)
+at java.xml/com.sun.org.apache.xerces.internal.impl.XMLDocumentScannerImpl.next(XMLDocumentScannerImpl.java:605)
+at java.xml/com.sun.org.apache.xerces.internal.impl.XMLDocumentFragmentScannerImpl.scanDocument(XMLDocumentFragmentScannerImpl.java:542)
+at java.xml/com.sun.org.apache.xerces.internal.parsers.XML11Configuration.parse(XML11Configuration.java:889)
+at java.xml/com.sun.org.apache.xerces.internal.parsers.XML11Configuration.parse(XML11Configuration.java:825)
+at java.xml/com.sun.org.apache.xerces.internal.parsers.XMLParser.parse(XMLParser.java:141)
+at java.xml/com.sun.org.apache.xerces.internal.parsers.AbstractSAXParser.parse(AbstractSAXParser.java:1224)
+at java.xml/com.sun.org.apache.xerces.internal.jaxp.SAXParserImpl$JAXPSAXParser.parse(SAXParserImpl.java:637)
+at java.xml/com.sun.org.apache.xerces.internal.jaxp.SAXParserImpl.parse(SAXParserImpl.java:326)
+at com.sun.hotspot.tools.compiler.LogParser.parse(LogParser.java:706)
+at com.sun.hotspot.tools.compiler.LogParser.parse(LogParser.java:684)
+at com.sun.hotspot.tools.compiler.LogCompilation.main(LogCompilation.java:145)
+Exception in thread "main" java.lang.InternalError: only nmethods should have a null compilation, here's a class com.sun.hotspot.tools.compiler.UncommonTrapEvent
+at com.sun.hotspot.tools.compiler.LogParser.parse(LogParser.java:723)
+at com.sun.hotspot.tools.compiler.LogParser.parse(LogParser.java:684)
+at com.sun.hotspot.tools.compiler.LogCompilation.main(LogCompilation.java:145)
+OS: generic
+
+-----
+Title: [JDK-8314840] 3 gc/epsilon tests ignore external vm options
+Priority: P4
+Type: Sub-task
+Component: hotspot
+Description: Tests
+gc/epsilon/TestDieDefault.java
+gc/epsilon/TestDieWithHeapDump.java
+gc/epsilon/TestDieWithOnError.java
+ignore vm flags and should be fixed or marked as flagless.
+
+-----
+Title: [JDK-8314842] zgc/genzgc tests ignore vm flags
+Priority: P4
+Type: Sub-task
+Component: hotspot
+Description: Tests
+gc/z/TestSmallHeap.java
+gc/z/TestPageCacheFlush.java
+gc/z/TestAllocateHeapAt.java
+gc/x/TestSmallHeap.java
+gc/x/TestPageCacheFlush.java
+gc/x/TestAllocateHeapAt.java
+silently ignore vm flags.
+Although, they have requires ZGC/genZGC they still ignores any other flags
+
+-----
+Title: [JDK-8315484] java/awt/dnd/RejectDragDropActionTest.java timed out
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The following test timed out in the JDK22 CI:
+java/awt/dnd/RejectDragDropActionTest.java
+Here's a snippet from the log file:
+#section:main
+----------messages:(9/348)----------
+command: main RejectDragDropActionTest
+reason: User specified action: run main RejectDragDropActionTest
+started: Thu Aug 31 19:09:45 UTC 2023
+Mode: othervm
+Additional options from @modules: --add-modules java.desktop
+Timeout information:
+--- Timeout information end.
+finished: Thu Aug 31 19:15:17 UTC 2023
+elapsed time (seconds): 332.739
+----------configuration:(3/43)----------
+Boot Layer
+add modules: java.desktop
+----------System.out:(1/37)----------
+Timeout signalled after 240 seconds
+----------System.err:(1/16)----------
+STATUS:Passed.
+----------rerun:(50/5513)*----------
+result: Error. Program `c:\ade\mesos\work_dir\jib-master\install\jdk-22+14-966\windows-x64.jdk\jdk-22\bin\java' timed out (timeout set to 240000ms, elapsed time including timeout handling was 332717ms).
+Default timeout value of 120 seconds/2 minutes with a default timeoutFactor
+of 2 means a total timeout of 240 seconds/4 minutes. The run executed
+for 332.739 seconds. The test did manage to pass while the timeout handler
+was running. I think this test needs a slightly longer default timeout value.
+Perhaps use timeout=180.
+OS: windows
+
+-----
+Title: [JDK-8315669] Open source several Swing PopupMenu related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source these Swing PopupMenu related tests:
+javax/swing/JPopupMenu/4236750/bug4236750.java
+javax/swing/JPopupMenu/4321273/bug4321273.java
+javax/swing/JPopupMenu/4711693/bug4711693.java
+javax/swing/JPopupMenu/4962731/bug4962731.java
+javax/swing/JPopupMenu/4966109/bug4966109.java
+javax/swing/JPopupMenu/5091257/bug5091257.java
+OS: generic
+
+-----
+Title: [JDK-8315742] Open source several Swing Scroll related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source these Swing Scroll related tests:
+javax/swing/JScrollBar/4495822/bug4495822.java
+javax/swing/JScrollBar/4696826/bug4696826.java
+javax/swing/JScrollBar/4842792/bug4842792.java
+javax/swing/JScrollPane/4247092/bug4247092.java
+javax/swing/JScrollPane/4264640/bug4264640.java
+javax/swing/JScrollPane/4467063/bug4467063.java
+OS: generic
+
+-----
+Title: [JDK-8315871] Opensource five more Swing regression tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Opensource and cleanup five Swing regression tests:
+javax/swing/AncestorNotifier/4817630/bug4817630.java
+javax/swing/BoxLayout/4191948/bug4191948.java
+javax/swing/ComponentInputMap/4248723/bug4248723.java
+javax/swing/DefaultBoundedRangeModel/4297953/bug4297953.java
+javax/swing/DefaultButtonModel/4097723/bug4097723.java
+
+-----
+Title: [JDK-8315876] Open source several Swing CSS related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source several Swing CSS related tests
+
+-----
+Title: [JDK-8315951] Open source several Swing HTMLEditorKit related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source several Swing Text related tests
+
+-----
+Title: [JDK-8315981] Opensource five more random Swing tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Opensource following tests:
+javax/swing/DefaultListCellRenderer/4180943/bug4180943.java
+javax/swing/DefaultListModel/4466250/bug4466250.java
+javax/swing/DefaultListSelectionModel/4140619/bug4140619.java
+javax/swing/DefaultListSelectionModel/4177723/bug4177723.java
+javax/swing/ImageIcon/4827074/bug4827074.java
+
+-----
+Title: [JDK-8316061] Open source several Swing RootPane and Slider related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source these Swing PopupMenu related tests:
+javax/swing/JRootPane/4207333/bug4207333.java
+javax/swing/JRootPane/4224113/bug4224113.java
+javax/swing/JRootPane/4627806/bug4627806.java
+javax/swing/JSlider/4200901/bug4200901.java
+javax/swing/JSlider/4203754/bug4203754.java
+OS: generic
+
+-----
+Title: [JDK-8316324] Opensource five miscellaneous Swing tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Clean up and opensource five tests:
+javax/swing/plaf/motif/InternalFrame/4150591/bug4150591.java
+javax/swing/InputVerifier/4774166/bug4774166.java
+javax/swing/JButton/4385611/bug4385611.java
+javax/swing/JButton/DefaultButtonLeak/DefaultButtonLeak.java
+javax/swing/JComponent/4706883/bug4706883.java
+
+-----
+Title: [JDK-8316388] Opensource five Swing component related regression tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Opensource five tests:
+javax/swing/JDesktopPane/4132993/bug4132993.java
+javax/swing/JDesktopPane/4773378/bug4773378.java
+javax/swing/JEditorPane/4325606/bug4325606.java
+javax/swing/JEditorPane/4330998/bug4330998.java
+javax/swing/JEditorPane/4694598/bug4694598.java
+
+-----
+Title: [JDK-8316452] java/lang/instrument/modules/AppendToClassPathModuleTest.java ignores VM flags
+Priority: P4
+Type: Sub-task
+Component: core-svc
+Description: Test
+java/lang/instrument/modules/AppendToClassPathModuleTest.java
+should be update to accept VM flags or mark it as vm.flagless.
+
+-----
+Title: [JDK-8316629] j.text.DateFormatSymbols setZoneStrings() exception is unhelpful
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: setZoneStrings() takes a multi dimensional array of String as input. If any of the rows have a length less than 5, an IllegalArgumentException is thrown.
+Currently, the exception is thrown without any indication of what went wrong
+OS: generic
+
+-----
+Title: [JDK-8317264] Pattern.Bound has `static` fields that should be `static final`.
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: static final class Bound extends Node {
+static int LEFT = 0x1;
+static int RIGHT= 0x2;
+static int BOTH = 0x3;
+static int NONE = 0x4;
+The fields are never reassigned and the lack of `final` seems to be an oversight.
+OS: generic
+
+-----
+Title: [JDK-8318811] Compiler directives parser swallows a character after line comments
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: Currently, the following valid compiler directive file:
+```
+[{
+match: "*::*",
+c2: { Exclude: true } // c1 only for startup
+}]
+```
+will be rejected by the parser:
+```
+Syntax error on line 4 byte 2: Expected value separator or object end (one of ',}').
+At ']'.
+}]
+Parsing of compiler directives failed
+```
+This is because `JSON::skip_line_comment()`, in contradiction to its specification, does **not** "*return the first token after the line comment without consuming it*" but does consumes it.
+The fix is trivial:
+```
+--- a/src/hotspot/share/utilities/json.cpp
++++ b/src/hotspot/share/utilities/json.cpp
+@@ -580,7 +580,7 @@ u_char JSON::skip_line_comment() {
+return 0;
+}
+next();
+-  return next();
++  return peek();
+}
+```
+
+-----
+Title: [JDK-8319572] Test jdk/incubator/vector/LoadJsvmlTest.java ignores VM flags
+Priority: P4
+Type: Sub-task
+Component: hotspot
+Description: Test
+jdk/incubator/vector/LoadJsvmlTest.java
+ignores VM flags and should be updated or marked as flagless.
+
+-----
+Title: [JDK-8320948] NPE due to unreported compiler error
+Priority: P3
+Type: Bug
+Component: tools
+Description: ADDITIONAL SYSTEM INFORMATION :
+17.0.7 / Linux
+A DESCRIPTION OF THE PROBLEM :
+When trying to compile attached project compiler blows up with NullPointerException.
+An exception has occurred in the compiler (17.0.7). Please file a bug against the Java compiler via the Java bug reporting page (https://bugreport.java.com) after checking the Bug Database (https://bugs.java.com) for duplicates. Include your program, the following diagnostic, and the parameters passed to the Java compiler in your report. Thank you.
+java.lang.NullPointerException: Cannot invoke "com.sun.tools.javac.code.Type.getTag()" because "type" is null
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+Full project to reproduce issue can be found here https://github.com/ghostbuster91/javac-npe-generic
+Compile it by calling `./gradlew compileJava`. The issue is not specific to the build tool.
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+Error informing that the second parameter is missing should be reported; as below:
+error: constructor Builder in class Builder cannot be applied to given types;
+return new Builder(Person.make(Entity.combineAll(entities)));
+^
+required: Person,String
+found:    Person
+reason: actual and formal argument lists differ in length
+1 error
+ACTUAL -
+$ ./gradlew clean compileJava
+Task :clean
+Task :compileJava FAILED
+An exception has occurred in the compiler (17.0.7). Please file a bug against the Java compiler via the Java bug reporting page (https://bugreport.java.com) after checking the Bug Database (https://bugs.java.com) for duplicates. Include your program, the following diagnostic, and the parameters passed to the Java compiler in your report. Thank you.
+java.lang.NullPointerException: Cannot invoke "com.sun.tools.javac.code.Type.getTag()" because "type" is null
+at jdk.compiler/com.sun.tools.javac.jvm.Code.typecode(Code.java:243)
+at jdk.compiler/com.sun.tools.javac.jvm.Items$Item.coerce(Items.java:271)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genExpr(Gen.java:879)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genArgs(Gen.java:902)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.visitNewClass(Gen.java:1967)
+at jdk.compiler/com.sun.tools.javac.tree.JCTree$JCNewClass.accept(JCTree.java:1852)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genExpr(Gen.java:877)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.visitReturn(Gen.java:1843)
+at jdk.compiler/com.sun.tools.javac.tree.JCTree$JCReturn.accept(JCTree.java:1709)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genDef(Gen.java:610)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genStat(Gen.java:645)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genStat(Gen.java:631)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genStats(Gen.java:682)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.visitBlock(Gen.java:1097)
+at jdk.compiler/com.sun.tools.javac.tree.JCTree$JCBlock.accept(JCTree.java:1091)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genDef(Gen.java:610)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genStat(Gen.java:645)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genMethod(Gen.java:967)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.visitMethodDef(Gen.java:930)
+at jdk.compiler/com.sun.tools.javac.tree.JCTree$JCMethodDecl.accept(JCTree.java:921)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genDef(Gen.java:610)
+at jdk.compiler/com.sun.tools.javac.jvm.Gen.genClass(Gen.java:2420)
+at jdk.compiler/com.sun.tools.javac.main.JavaCompiler.genCode(JavaCompiler.java:737)
+at jdk.compiler/com.sun.tools.javac.main.JavaCompiler.generate(JavaCompiler.java:1617)
+at jdk.compiler/com.sun.tools.javac.main.JavaCompiler.generate(JavaCompiler.java:1585)
+at jdk.compiler/com.sun.tools.javac.main.JavaCompiler.compile(JavaCompiler.java:946)
+at jdk.compiler/com.sun.tools.javac.api.JavacTaskImpl.lambda$doCall$0(JavacTaskImpl.java:104)
+at jdk.compiler/com.sun.tools.javac.api.JavacTaskImpl.invocationHelper(JavacTaskImpl.java:152)
+at jdk.compiler/com.sun.tools.javac.api.JavacTaskImpl.doCall(JavacTaskImpl.java:100)
+at jdk.compiler/com.sun.tools.javac.api.JavacTaskImpl.call(JavacTaskImpl.java:94)
+at org.gradle.internal.compiler.java.IncrementalCompileTask.call(IncrementalCompileTask.java:92)
+at org.gradle.api.internal.tasks.compile.AnnotationProcessingCompileTask.call(AnnotationProcessingCompileTask.java:94)
+at org.gradle.api.internal.tasks.compile.ResourceCleaningCompilationTask.call(ResourceCleaningCompilationTask.java:57)
+at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:55)
+at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:39)
+at org.gradle.api.internal.tasks.compile.NormalizingJavaCompiler.delegateAndHandleErrors(NormalizingJavaCompiler.java:98)
+at org.gradle.api.internal.tasks.compile.NormalizingJavaCompiler.execute(NormalizingJavaCompiler.java:52)
+at org.gradle.api.internal.tasks.compile.NormalizingJavaCompiler.execute(NormalizingJavaCompiler.java:38)
+at org.gradle.api.internal.tasks.compile.AnnotationProcessorDiscoveringCompiler.execute(AnnotationProcessorDiscoveringCompiler.java:51)
+at org.gradle.api.internal.tasks.compile.AnnotationProcessorDiscoveringCompiler.execute(AnnotationProcessorDiscoveringCompiler.java:37)
+at org.gradle.api.internal.tasks.compile.ModuleApplicationNameWritingCompiler.execute(ModuleApplicationNameWritingCompiler.java:46)
+at org.gradle.api.internal.tasks.compile.ModuleApplicationNameWritingCompiler.execute(ModuleApplicationNameWritingCompiler.java:36)
+at org.gradle.jvm.toolchain.internal.DefaultToolchainJavaCompiler.execute(DefaultToolchainJavaCompiler.java:57)
+at org.gradle.api.tasks.compile.JavaCompile.lambda$createToolchainCompiler$3(JavaCompile.java:202)
+at org.gradle.api.internal.tasks.compile.CleaningJavaCompiler.execute(CleaningJavaCompiler.java:53)
+at org.gradle.api.internal.tasks.compile.incremental.IncrementalCompilerFactory.lambda$createRebuildAllCompiler$0(IncrementalCompilerFactory.java:52)
+at org.gradle.api.internal.tasks.compile.incremental.SelectiveCompiler.execute(SelectiveCompiler.java:70)
+at org.gradle.api.internal.tasks.compile.incremental.SelectiveCompiler.execute(SelectiveCompiler.java:44)
+at org.gradle.api.internal.tasks.compile.incremental.IncrementalResultStoringCompiler.execute(IncrementalResultStoringCompiler.java:66)
+at org.gradle.api.internal.tasks.compile.incremental.IncrementalResultStoringCompiler.execute(IncrementalResultStoringCompiler.java:52)
+at org.gradle.api.internal.tasks.compile.CompileJavaBuildOperationReportingCompiler$1.call(CompileJavaBuildOperationReportingCompiler.java:64)
+at org.gradle.api.internal.tasks.compile.CompileJavaBuildOperationReportingCompiler$1.call(CompileJavaBuildOperationReportingCompiler.java:48)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:199)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+at org.gradle.internal.operations.DefaultBuildOperationExecutor.call(DefaultBuildOperationExecutor.java:73)
+at org.gradle.api.internal.tasks.compile.CompileJavaBuildOperationReportingCompiler.execute(CompileJavaBuildOperationReportingCompiler.java:48)
+at org.gradle.api.tasks.compile.JavaCompile.performCompilation(JavaCompile.java:220)
+at org.gradle.api.tasks.compile.JavaCompile.performIncrementalCompilation(JavaCompile.java:161)
+at org.gradle.api.tasks.compile.JavaCompile.compile(JavaCompile.java:146)
+at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+at org.gradle.internal.reflect.JavaMethod.invoke(JavaMethod.java:125)
+at org.gradle.api.internal.project.taskfactory.IncrementalTaskAction.doExecute(IncrementalTaskAction.java:45)
+at org.gradle.api.internal.project.taskfactory.StandardTaskAction.execute(StandardTaskAction.java:51)
+at org.gradle.api.internal.project.taskfactory.IncrementalTaskAction.execute(IncrementalTaskAction.java:26)
+at org.gradle.api.internal.project.taskfactory.StandardTaskAction.execute(StandardTaskAction.java:29)
+at org.gradle.api.internal.tasks.execution.TaskExecution$3.run(TaskExecution.java:248)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:29)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:26)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.run(DefaultBuildOperationRunner.java:47)
+at org.gradle.internal.operations.DefaultBuildOperationExecutor.run(DefaultBuildOperationExecutor.java:68)
+at org.gradle.api.internal.tasks.execution.TaskExecution.executeAction(TaskExecution.java:233)
+at org.gradle.api.internal.tasks.execution.TaskExecution.executeActions(TaskExecution.java:216)
+at org.gradle.api.internal.tasks.execution.TaskExecution.executeWithPreviousOutputFiles(TaskExecution.java:199)
+at org.gradle.api.internal.tasks.execution.TaskExecution.execute(TaskExecution.java:166)
+at org.gradle.internal.execution.steps.ExecuteStep.executeInternal(ExecuteStep.java:105)
+at org.gradle.internal.execution.steps.ExecuteStep.access$000(ExecuteStep.java:44)
+at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:59)
+at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:56)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:199)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+at org.gradle.internal.operations.DefaultBuildOperationExecutor.call(DefaultBuildOperationExecutor.java:73)
+at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:56)
+at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:44)
+at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:67)
+at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:37)
+at org.gradle.internal.execution.steps.CancelExecutionStep.execute(CancelExecutionStep.java:41)
+at org.gradle.internal.execution.steps.TimeoutStep.executeWithoutTimeout(TimeoutStep.java:74)
+at org.gradle.internal.execution.steps.TimeoutStep.execute(TimeoutStep.java:55)
+at org.gradle.internal.execution.steps.CreateOutputsStep.execute(CreateOutputsStep.java:50)
+at org.gradle.internal.execution.steps.CreateOutputsStep.execute(CreateOutputsStep.java:28)
+at org.gradle.internal.execution.steps.CaptureStateAfterExecutionStep.executeDelegateBroadcastingChanges(CaptureStateAfterExecutionStep.java:100)
+at org.gradle.internal.execution.steps.CaptureStateAfterExecutionStep.execute(CaptureStateAfterExecutionStep.java:72)
+at org.gradle.internal.execution.steps.CaptureStateAfterExecutionStep.execute(CaptureStateAfterExecutionStep.java:50)
+at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:40)
+at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:29)
+at org.gradle.internal.execution.steps.BuildCacheStep.executeWithoutCache(BuildCacheStep.java:179)
+at org.gradle.internal.execution.steps.BuildCacheStep.lambda$execute$1(BuildCacheStep.java:70)
+at org.gradle.internal.Either$Right.fold(Either.java:175)
+at org.gradle.internal.execution.caching.CachingState.fold(CachingState.java:59)
+at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:68)
+at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:46)
+at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:36)
+at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:25)
+at org.gradle.internal.execution.steps.RecordOutputsStep.execute(RecordOutputsStep.java:36)
+at org.gradle.internal.execution.steps.RecordOutputsStep.execute(RecordOutputsStep.java:22)
+at org.gradle.internal.execution.steps.SkipUpToDateStep.executeBecause(SkipUpToDateStep.java:91)
+at org.gradle.internal.execution.steps.SkipUpToDateStep.lambda$execute$2(SkipUpToDateStep.java:55)
+at java.base/java.util.Optional.orElseGet(Optional.java:364)
+at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:55)
+at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:37)
+at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:65)
+at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:36)
+at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:37)
+at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:27)
+at org.gradle.internal.execution.steps.ResolveCachingStateStep.execute(ResolveCachingStateStep.java:77)
+at org.gradle.internal.execution.steps.ResolveCachingStateStep.execute(ResolveCachingStateStep.java:38)
+at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:94)
+at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:49)
+at org.gradle.internal.execution.steps.CaptureStateBeforeExecutionStep.execute(CaptureStateBeforeExecutionStep.java:71)
+at org.gradle.internal.execution.steps.CaptureStateBeforeExecutionStep.execute(CaptureStateBeforeExecutionStep.java:45)
+at org.gradle.internal.execution.steps.SkipEmptyWorkStep.executeWithNonEmptySources(SkipEmptyWorkStep.java:177)
+at org.gradle.internal.execution.steps.SkipEmptyWorkStep.execute(SkipEmptyWorkStep.java:86)
+at org.gradle.internal.execution.steps.SkipEmptyWorkStep.execute(SkipEmptyWorkStep.java:53)
+at org.gradle.internal.execution.steps.RemoveUntrackedExecutionStateStep.execute(RemoveUntrackedExecutionStateStep.java:32)
+at org.gradle.internal.execution.steps.RemoveUntrackedExecutionStateStep.execute(RemoveUntrackedExecutionStateStep.java:21)
+at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsStartedStep.execute(MarkSnapshottingInputsStartedStep.java:38)
+at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:36)
+at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:23)
+at org.gradle.internal.execution.steps.CleanupStaleOutputsStep.execute(CleanupStaleOutputsStep.java:75)
+at org.gradle.internal.execution.steps.CleanupStaleOutputsStep.execute(CleanupStaleOutputsStep.java:41)
+at org.gradle.internal.execution.steps.AssignWorkspaceStep.lambda$execute$0(AssignWorkspaceStep.java:32)
+at org.gradle.api.internal.tasks.execution.TaskExecution$4.withWorkspace(TaskExecution.java:293)
+at org.gradle.internal.execution.steps.AssignWorkspaceStep.execute(AssignWorkspaceStep.java:30)
+at org.gradle.internal.execution.steps.AssignWorkspaceStep.execute(AssignWorkspaceStep.java:21)
+at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:37)
+at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:27)
+at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:47)
+at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:34)
+at org.gradle.internal.execution.impl.DefaultExecutionEngine$1.execute(DefaultExecutionEngine.java:64)
+at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:146)
+at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:135)
+at org.gradle.api.internal.tasks.execution.FinalizePropertiesTaskExecuter.execute(FinalizePropertiesTaskExecuter.java:46)
+at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)
+at org.gradle.api.internal.tasks.execution.SkipTaskWithNoActionsExecuter.execute(SkipTaskWithNoActionsExecuter.java:57)
+at org.gradle.api.internal.tasks.execution.SkipOnlyIfTaskExecuter.execute(SkipOnlyIfTaskExecuter.java:74)
+at org.gradle.api.internal.tasks.execution.CatchExceptionTaskExecuter.execute(CatchExceptionTaskExecuter.java:36)
+at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.executeTask(EventFiringTaskExecuter.java:77)
+at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:55)
+at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:52)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:199)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+at org.gradle.internal.operations.DefaultBuildOperationExecutor.call(DefaultBuildOperationExecutor.java:73)
+at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter.execute(EventFiringTaskExecuter.java:52)
+at org.gradle.execution.plan.LocalTaskNodeExecutor.execute(LocalTaskNodeExecutor.java:42)
+at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:337)
+at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:324)
+at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:317)
+at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
+at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:463)
+at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:380)
+at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
+at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+at java.base/java.lang.Thread.run(Thread.java:833)
+FAILURE: Build failed with an exception.
+* What went wrong:
+Execution failed for task ':compileJava'.
+Compilation failed; see the compiler error output for details.
+CUSTOMER SUBMITTED WORKAROUND :
+This only occurs if the second parameter is missing. Filling the second parameter in the Builder:13 fixes the issue.
+The issue goes away if we provide generic type parameter for the Entity.combineAll function call in Builder.13
+FREQUENCY : always
+OS: generic
+
+-----
+Title: [JDK-8322141] SequenceInputStream.transferTo should not return as soon as Long.MAX_VALUE bytes have been transferred
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: Currently the code in SequenceInputStream.transferTo() contains
+if (transferred
+
+-----
+Title: [JDK-8325680] Uninitialised memory in deleteGSSCB of GSSLibStub.c:179
+Priority: P3
+Type: Bug
+Component: security-libs
+Description: Uninitialised memory in deleteGSSCB of GSSLibStub.c:179
+
+-----
+Title: [JDK-8327461] KeyStore getEntry is not thread-safe
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: When the KeyStore is concurrently modified, keyStore.getEntry might fail or return a non-matching private key / certificate pair. This is because PKCS12KeyStore.engineGetEntry calls engineGetKey and engineGetCertificateChain without any synchronization with engineSetEntry.
+This is a problem for the PKIX KeyManager (sun.security.ssl.X509KeyManagerImpl), which retrieves the entries from the KeyStore on every handshake. Currently this only impacts the handshakes that are running at the same time as the keystore update, but in JDK-8322767 we are exploring caching the entries on first use, and caching the incorrect entries would affect all handshakes until the next keystore update.
+To reproduce:
+- Create a PKCS12 key store, and 2 KeyStore.PrivateKeyEntry instances, one with EC key/certificate, one with RSA key/certificate.
+- create one thread that calls setEntry in a loop using the same alias, but alternating between the entries:
+- in another thread call getEntry in a loop
+see the attached reproducer (incomplete, needs keys).
+The code quickly fails with the following exception:
+Exception in thread "main" java.lang.IllegalArgumentException: private key algorithm does not match algorithm of public key in end entity certificate (at index 0)
+at java.base/java.security.KeyStore$PrivateKeyEntry.(KeyStore.java:552)
+at java.base/sun.security.pkcs12.PKCS12KeyStore.engineGetEntry(PKCS12KeyStore.java:1338)
+at java.base/sun.security.util.KeyStoreDelegator.engineGetEntry(KeyStoreDelegator.java:174)
+at java.base/java.security.KeyStore.getEntry(KeyStore.java:1576)
+Reproducer:
+public static final String TEST = "test";
+private static void test(KeyStore ks, KeyStore.PrivateKeyEntry ec,
+KeyStore.PrivateKeyEntry rsa,
+KeyStore.PasswordProtection protParam)
+throws Exception {
+ks.setEntry(TEST, ec, protParam);
+new Thread(()-{while(true) {
+try {
+ks.setEntry(TEST, ec, protParam);
+ks.setEntry(TEST, rsa, protParam);
+} catch (KeyStoreException e) {
+e.printStackTrace();
+System.exit(1);
+}
+}
+}).start();
+while(true) {
+ks.getEntry(TEST, protParam);
+}
+}
+
+-----
+Title: [JDK-8328301] Convert Applet test ManualHTMLDataFlavorTest.java to main program
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: java/awt/datatransfer/HTMLDataFlavors/ManualHTMLDataFlavorTest.java
+is an applet-based manual test that can be converted to a main program
+
+-----
+Title: [JDK-8328482] Convert and Open source few manual applet test to main based
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert these manual applet test to main based:
+java/awt/Frame/MegaIconTest/MegaIconTest.html
+java/awt/Frame/FrameMaximizedTest/FrameMaximizedTest.html
+java/awt/Frame/FrameMinimizeTest/FrameMinimizeTest.html
+java/awt/Frame/SizeMinimizedTest/SizeMinimizedTest.html
+OS: generic
+
+-----
+Title: [JDK-8328484] Convert and Opensource few JFileChooser applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: JFileChooser closed manual applet based tests to be converted to main-based manual test and opensourced
+javax/swing/JFileChooser/FileSelectionTests/FileSelectionTests.html
+javax/swing/JFileChooser/ShowHiddenFiles/ShowHiddenFiles.html
+javax/swing/JFileChooser/EnterEmptyDirectory/EnterEmptyDirectory.html
+
+-----
+Title: [JDK-8328648] Remove applet usage from JFileChooser tests bug4150029
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Removing deprecated applet usage from JFileChooser tests
+open/test/jdk/javax/swing/JFileChooser/4150029/bug4150029.java
+
+-----
+Title: [JDK-8328670] Automate and open source few closed manual applet test
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Few closed manual applet based tests to be converted to automated one and open sourced
+java/awt/swing/event/KeyEvent/MenuShortCut/JActionCommandTest.html
+javax/swing/JInternalFrame/4199401/Ctrli.html
+
+-----
+Title: [JDK-8328673] Convert closed text/html/CSS manual applet test to main
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: COnvert closed text/html/CSS manual applet test to main using PassFailJFrame manual framework
+
+-----
+Title: [JDK-8328864] NullPointerException in sun.security.jca.ProviderList.getService()
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: Consider this trivial application code:
+import java.security.*;
+public class KeyStoreTest {
+public static void main(final String[] args) throws Exception {
+final KeyStore ks = KeyStore.getInstance("PKCS12");
+System.out.println("Got keystore " + ks);
+}
+}
+When compiled and run without any additional security properties as follows, it works fine:
+java KeyStoreTest
+Got keystore java.security.KeyStore@6b884d57
+Now create a file "/tmp/app-security.properties"  file with the following contents (it sets a security property)
+jdk.security.provider.preferred=KeyStore.PKCS12:JipherJCE
+and run that program as follows by passing "/tmp/app-security.properties" to -Djava.security.properties:
+java -Djava.security.properties=/tmp/app-security.properties KeyStoreTest
+This time it throws a NullPointerException:
+Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.security.Provider.getService(String, String)" because "p" is null
+at java.base/sun.security.jca.ProviderList.getService(ProviderList.java:376)
+at java.base/sun.security.jca.GetInstance.getInstance(GetInstance.java:157)
+at java.base/java.security.Security.getImpl(Security.java:658)
+at java.base/java.security.KeyStore.getInstance(KeyStore.java:870)
+at KeyStoreTest.main(KeyStoreTest.java:7)
+I ran this on Java 22 but is applicable for lower Java versions too.
+
+-----
+Title: [JDK-8330106] C2: VectorInsertNode::make() shouldn't call ConINode::make() directly
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: It should call PhaseValues::intcon() instead.
+
+-----
+Title: [JDK-8330158] C2: Loop strip mining uses ABS with min int
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: JDK-8328934 exposes more problems with ABS in loop strip mining.
+$ make images test TEST=compiler/c2/MinValueStrideCountedLoop.java
+#  Internal Error (/Users/shipilev/Work/shipilev-jdk/src/hotspot/share/opto/loopnode.cpp:2355), pid=78229, tid=27907
+#  Error: ABS: argument should not allow overflow
+Fixing that simple one exposes the next one:
+#  Internal Error (/Users/shipilev/Work/shipilev-jdk/src/hotspot/share/opto/loopnode.cpp:2965), pid=32195, tid=27139
+#  Error: ABS: argument should not allow overflow
+
+-----
+Title: [JDK-8330534] Update nsk/jdwp tests to use driver instead of othervm
+Priority: P4
+Type: Sub-task
+Component: core-svc
+
+-----
+Title: [JDK-8331088] Incorrect TraceLoopPredicate output
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: This line in PhaseIdealLoop::loop_predication_impl_helper prints the node index of the lower bounds check, not the upper bounds check:
+if (TraceLoopPredicate) tty-print_cr("upper bound check if: %d", lower_bound_iff-_idx);
+
+-----
+Title: [JDK-8332880] JFR GCHelper class recognizes "Archive" regions as valid
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: That class used for testing JFR events still mentions "Archive" regions which have been removed long ago.
+
+-----
+Title: [JDK-8333680] com/sun/tools/attach/BasicTests.java fails with "SocketException: Permission denied: connect"
+Priority: P4
+Type: Bug
+Component: core-svc
+Description: In some configurations (for example with active VPN) the test fails due SocketException:
+[runApplication] Exception in thread "Attach Listener" java.lang.reflect.InvocationTargetException
+[runApplication] 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:118)
+[runApplication] 	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+[runApplication] 	at java.instrument/sun.instrument.InstrumentationImpl.loadClassAndStartAgent(InstrumentationImpl.java:562)
+[runApplication] 	at java.instrument/sun.instrument.InstrumentationImpl.loadClassAndCallAgentmain(InstrumentationImpl.java:582)
+[runApplication] Caused by: java.net.SocketException: Permission denied: connect
+[runApplication] 	at java.base/sun.nio.ch.Net.connect0(Native Method)
+[runApplication] 	at java.base/sun.nio.ch.Net.connect(Net.java:589)
+[runApplication] 	at java.base/sun.nio.ch.Net.connect(Net.java:578)
+[runApplication] 	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:583)
+[runApplication] 	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327)
+[runApplication] 	at java.base/java.net.Socket.connect(Socket.java:760)
+[runApplication] 	at java.base/java.net.Socket.connect(Socket.java:695)
+[runApplication] 	at Agent.agentmain(Agent.java:41)
+[runApplication] 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+[runApplication] 	... 3 more
+The test listens and connects using wildcard addresses.
+The test should be updated to use loopback addresses
+
+-----
+Title: [JDK-8335181] Incorrect handling of HTTP/2 GOAWAY frames in HttpClient
+Priority: P3
+Type: Bug
+Component: core-libs
+Description: A DESCRIPTION OF THE PROBLEM :
+The setup is
+- nginx as reverse proxy with SSL and http/2
+- REST API behind nginx
+The application performs many requests to that API using HttpClient from JDK, which automatically detects http/2 via ALPN.
+nginx closes connection after 1000 requests, configurable with the keepalive_requests directive (applies for both http/1.1 persistent connections and http/2).
+If specifically configuring the client as http/1.1 then everything works.
+Also happens in java 17.
+The stacktrace is
+java.io.IOException: /172.30.30.7:51892: GOAWAY received
+at java.net.http/jdk.internal.net.http.Http2Connection.handleGoAway(Http2Connection.java:1011)
+at java.net.http/jdk.internal.net.http.Http2Connection.handleConnectionFrame(Http2Connection.java:876)
+at java.net.http/jdk.internal.net.http.Http2Connection.processFrame(Http2Connection.java:751)
+at java.net.http/jdk.internal.net.http.frame.FramesDecoder.decode(FramesDecoder.java:155)
+at java.net.http/jdk.internal.net.http.Http2Connection$FramesController.processReceivedData(Http2Connection.java:232)
+at java.net.http/jdk.internal.net.http.Http2Connection.asyncReceive(Http2Connection.java:677)
+at java.net.http/jdk.internal.net.http.Http2Connection$Http2TubeSubscriber.processQueue(Http2Connection.java:1313)
+All suggesting to either downgrade to http/1.1 or change the client.
+OS: generic
+
+-----
+Title: [JDK-8335684] Test ThreadCpuTime.java should pause like ThreadCpuTimeArray.java
+Priority: P4
+Type: Bug
+Component: core-svc
+Description: test/jdk/java/lang/management/ThreadMXBean/ThreadCpuTime.java
+is similar to ThreadCpuTimeArray.java and can have the same problem, where CPU times are sampled immediately after a thread appearing to be blocked.  The same sleep should be added to this test.
+
+-----
+Title: [JDK-8335860] compiler/vectorization/TestFloat16VectorConvChain.java fails with non-standard AVX/SSE settings
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: The test fails with -XX:UseAVX=0 -XX:UseSSE=3
+Failed IR Rules (1) of Methods (1)
+----------------------------------
+1) Method "public static void compiler.vectorization.TestFloat16VectorConvChain.test(short[],short[],short[])" - [Failed IR rules: 1]:
+* @IR rule 1: "@compiler.lib.ir_framework.IR(phase={DEFAULT}, applyIfPlatformAnd={}, applyIfCPUFeatureOr={}, counts={"_#V#VECTOR_CAST_HF2F#_", "_@any", "= 1", "_#V#VECTOR_CAST_F2HF#_", "_@any", " = 1"}, applyIfPlatform={}, failOn={}, applyIfPlatformOr={}, applyIfOr={}, applyIfCPUFeatureAnd={}, applyIf={}, applyIfCPUFeature={}, applyIfAnd={}, applyIfNot={})"
+Phase "PrintIdeal":
+- counts: Graph contains wrong number of nodes:
+* Constraint 1: "(\\d+(\\s){2}(VectorCastHF2F.*)+(\\s){2}===.*vector[A-Za-z]\\[\\d+\\]:\\{float\\})"
+- Failed comparison: [found] 0 = 1 [given]
+- No nodes matched!
+* Constraint 2: "(\\d+(\\s){2}(VectorCastF2HF.*)+(\\s){2}===.*vector[A-Za-z]\\[\\d+\\]:\\{short\\})"
+- Failed comparison: [found] 0 = 1 [given]
+- No nodes matched!
+
+-----
+Title: [JDK-8336499] Failure when creating non-CRT RSA private keys in SunPKCS11
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: After JDK-8271566, the CKA_MODULUS and CKA_PRIVATE_EXPONENT attributes were added to the list passed to Java's C_GetAttributeValue wrapper when determining if a private RSA key is CRT or non-CRT [1]. The rationale was to make a single query and have both CKA_MODULUS and CKA_PRIVATE_EXPONENT available beforehand, avoiding a potential second query later. Most PKCS #11 tokens benefit from this saving.
+Contrary to the native C_GetAttributeValue PKCS #11 API, its Java counterpart does not return any attribute value if there is an error in one of the attributes queried (e.g. if CKR_ATTRIBUTE_TYPE_INVALID is returned) [2]. If a non-CRT key is created in a token (pre PKCS #11 2.40), the query including all attributes will fail and CKA_MODULUS and CKA_PRIVATE_EXPONENT will not be available. An error will be thrown here [3].
+This bug was reported by Bob Du (IBM).
+--
+[1] - https://git.openjdk.org/jdk/blob/jdk-24%2B6/src/jdk.crypto.cryptoki/share/classes/sun/security/pkcs11/P11Key.java#L568
+[2] - https://git.openjdk.org/jdk/blob/jdk-24%2B6/src/jdk.crypto.cryptoki/share/native/libj2pkcs11/p11_objmgmt.c#L252
+[3] - https://git.openjdk.org/jdk/blob/jdk-24%2B6/src/jdk.crypto.cryptoki/share/classes/sun/security/pkcs11/P11Key.java#L594
+OS: generic
+
+-----
+Title: [JDK-8336827] compiler/vectorization/TestFloat16VectorConvChain.java  timeouts on ppc64 platforms after JDK-8335860
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: After JDK-8335860, we see a lot of timeouts in test compiler/vectorization/TestFloat16VectorConvChain.java
+on the ppc64 based platforms.
+The timeouts show up especially with the (fast)debug binaries.
+OS: generic
+
+-----
+Title: [JDK-8337795] Type annotation attached to incorrect type during class reading
+Priority: P3
+Type: Bug
+Component: tools
+Description: [As seen in https://github.com/uber/NullAway/issues/1011 ]
+After the fix for JDK-8225377, type annotations are sometimes incorrectly attached to the wrong contained type if the same type appears multiple times. For example given `Function` below, the annotation is attached to the first occurrence of `B`, resulting in `Function`.
+The fix for JDK-8225377 relies on the identity of `Type` instances to find the position of types with type annotations, and then to rewrite them: https://github.com/openjdk/jdk/blob/8bd3cd51562ff9e76fa0e3d49d38e6e19210f878/src/jdk.compiler/share/classes/com/sun/tools/javac/jvm/ClassReader.java#L2464-L2470
+This was done to share logic for rewriting types with TypeAnnotationTypeMapping, but relies on the incorrect assumption that the contained types will have unique identities.
+Demo:
+=== ./B.java
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.util.function.Function;
+public class B {
+@Target(ElementType.TYPE_USE)
+@Retention(RetentionPolicy.RUNTIME)
+@interface N {}
+void g(Function f) {}
+}
+=== ./P.java
+import java.util.Set;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.ElementFilter;
+@SupportedAnnotationTypes("*")
+public class P extends AbstractProcessor {
+@Override
+public SourceVersion getSupportedSourceVersion() {
+return SourceVersion.latestSupported();
+}
+boolean first = true;
+@Override
+public boolean process(Set annotations, RoundEnvironment roundEnv) {
+if (!first) {
+return false;
+}
+first = false;
+for (var m :
+ElementFilter.methodsIn(
+processingEnv.getElementUtils().getTypeElement("B").getEnclosedElements())) {
+System.err.println(m);
+}
+return false;
+}
+}
+$ javac -fullversion
+javac full version "23-ea+35-2364"
+$ javac P.java
+Compiling B.java from source shows the annotation in the correct location on the second type argument:
+$ javac -processor P B.java
+g(java.util.function.Function)
+After reading B.class the annotation is incorrectly placed on the first type argument:
+$ javac -processor P B
+g(java.util.function.Function)
+
+-----
+Title: [JDK-8337958] Out-of-bounds array access in secondary_super_cache
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: The fix for JDK-8180450, secondary_super_cache does not scale well, has a rare (and benign) out-of-bounds array access. While this bug is very unlikely ever to cause a failure, it should be fixed.
+OS: generic
+
+-----
+Title: [JDK-8338064] Give better error for ConcurrentHashTable corruption
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: When nodes in the ConcurrentHashTable get corrupted and their hash codes don't match, resizing fails with an unhelpful message.  See linked bug for details.
+
+-----
+Title: [JDK-8339300] CollectorPolicy.young_scaled_initial_ergo_vm gtest fails on ppc64 based platforms
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: Looks like the failure of CollectorPolicy.young_scaled_initial_ergo_vm started when JDK-8258483 came in.
+AIX / Linux ppc64le:
+[ RUN      ] CollectorPolicy.young_scaled_initial_ergo_vm
+test/hotspot/gtest/gc/shared/test_collectorPolicy.cpp:122: Failure
+Expected equality of these values:
+expected
+Which is: 44695552
+NewSize
+Which is: 41943040
+test/hotspot/gtest/gc/shared/test_collectorPolicy.cpp:78: Failure
+Expected: checker-execute() doesn't generate new fatal failures in the current thread.
+Actual: it does.
+[  FAILED  ] CollectorPolicy.young_scaled_initial_ergo_vm (0 ms)
+OS: generic
+
+-----
+Title: [JDK-8339538] Wrong timeout computations in DnsClient
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: The following issues related to timeout computation in the 'com.sun.jndi.dns.DnsClient' code have been reported here:
+https://mail.openjdk.org/pipermail/core-libs-dev/2024-September/128797.html
+1. Non-monotonic time source is used to calculate the duration of receive operation:
+"       long start = System.currentTimeMillis();
+gotData = blockingReceive(udpChannel, ipkt, timeoutLeft);
+long end = System.currentTimeMillis();
+System.currentTimeMillis() is not monotonic and therefore it could happen that end - start  MIN_TIMEOUT);
+Here, timeoutLeft is not iteratively decreased, but is always derived from `pktTimeout`.
+I can see a case where `timeoutLeft` never drops below `MIN_TIMEOUT` (this is the part where I'm not sure if I'm missing some deeper knowledge)."
+
+-----
+Title: [JDK-8339639] Opensource few AWT PopupMenu tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: ./java/awt/PopupMenu/PopupMenuVisuals/PopupMenuVisuals.java
+./java/awt/PopupMenu/PopupHangTest/PopupHangTest.java
+are to be converted from applet to main based
+
+-----
+Title: [JDK-8339727] Open source several AWT focus tests - series 1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert closed FOcus applet tests
+./java/awt/Focus/OverrideRedirectWindowActivationTest/ActivateOnProperAppContextTest/ActivateOnProperAppContextTest.java
+./java/awt/Focus/KillFocusTest/KillFocusTest.java
+./java/awt/Focus/DisabledAutoTransfer/TestDisabledAutoTransferSwing.java
+./java/awt/Focus/DisabledAutoTransfer/TestDisabledAutoTransfer.java
+into main based and opensource
+
+-----
+Title: [JDK-8339794] Open source closed choice tests #1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: java/awt/Choice/ChoiceInsertTest/ChoiceInsertTest.java
+java/awt/Choice/ChoiceMouseDragTest/ChoiceMouseDragTest.java
+java/awt/Choice/WheelEventsConsumed/WheelEventsConsumed.java
+
+-----
+Title: [JDK-8339810] Clean up the code in sun.tools.jar.Main to properly close resources and use ZipFile during extract
+Priority: P4
+Type: Bug
+Component: tools
+Description: There are several places in the sun.tools.jar.Main where we currently don't properly close the resources in a try/finally block. Also, the extract implementation against a JAR file, currently uses ZipInputStream while extracting the entries. We should switch to using ZipFile in that part of the implementation like we do for other operations against a JAR file, in the sun.tools.jar.Main code.
+
+-----
+Title: [JDK-8339836] Open source several AWT Mouse tests - Batch 1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source these AWT Mouse tests:
+java/awt/Mouse/MouseEnterExitTest/MouseEnterExitTest.java
+java/awt/Mouse/MouseEnterExitTest2/MouseEnterExitTest2.java
+java/awt/Mouse/MousePressedTest/MousePressedTest.java
+java/awt/Mouse/MouseEnterExitTest4/MouseEnterExitTest4.java
+java/awt/Mouse/MouseEnterExitTest3/MouseEnterExitTest3.java
+OS: generic
+
+-----
+Title: [JDK-8339842] Open source several AWT focus tests - series 2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert these Focus applet tests into main and opensource
+./java/awt/Focus/LightweightFocusLostTest/LightweightFocusLostTest.java
+./java/awt/Focus/MixedWeightFocus/MixedWeightFocus.java
+./java/awt/Focus/NextFocusHelperTest/NextFocusHelperTest.java
+./java/awt/Focus/FocusChangeOnResizeTest/FocusChangeOnResizeTest.java
+
+-----
+Title: [JDK-8339895] Open source several AWT focus tests - series 3
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert closed Focus applet tests into main and opensource
+./java/awt/Focus/CanvasPanelFocusOnClick/CanvasPanelFocusOnClickTest.java
+./java/awt/Focus/ActivateFocusTest/ActivateFocusTest.java
+./java/awt/Focus/RequestInInactiveFrame/RequestInInactiveFrame.java
+./java/awt/Focus/FocusPolicyTest/FocusPolicyTest.java
+
+-----
+Title: [JDK-8339906] Open source several AWT focus tests - series 4
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert and opensource several AWT focus applet test to main
+./java/awt/Focus/FocusKeepTest/FocusKeepTest.java
+./java/awt/Focus/KeyStrokeTest/KeyStrokeTest.java
+./java/awt/Focus/ComponentLostFocusTest/ComponentLostFocusTest.java
+./java/awt/Focus/AltTabFocus/AltTabEventsTest.java
+
+-----
+Title: [JDK-8339935] Open source several AWT focus tests - series 5
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert few closed Focus applet tests to main and opensource
+./java/awt/Focus/DeinconifyTest/DeinconifyTest.java
+./java/awt/Focus/HiddenTraversalTest/HiddenTraversalTest.java
+./java/awt/Focus/ProxiedWindowHide/ProxiedWindowHideTest.java
+./java/awt/Focus/LightweightPopupTest/LightweightPopupTest.java
+
+-----
+Title: [JDK-8339982] Open source several AWT Mouse tests - Batch 2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source these AWT Mouse tests:
+java/awt/Mouse/MouseClickCount/MouseClickCount.java
+java/awt/Mouse/MouseDragEnterExitTest/MouseDragEnterExitTest.java
+java/awt/Mouse/MouseDragTest/MouseDragTest.java
+java/awt/Mouse/OpenWinDoubleClickTest/OpenWinDoubleClickTest.java
+java/awt/GraphicsEnvironment/DefaultScreenDeviceTest/DefaultScreenDeviceTest.java
+OS: generic
+
+-----
+Title: [JDK-8339984] Open source AWT MenuItem related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert these MenuITem applet tests into main and opensource
+./java/awt/MenuItem/SetFont/MenuSetFontTest.java
+./java/awt/MenuItem/NullOrEmptyStringLabelTest/NullOrEmptyStringLabelTest.java
+./java/awt/MenuItem/UnicodeMenuItemTest/UnicodeMenuItemTest.java
+./java/awt/MenuItem/LotsOfMenuItems/LotsOfMenuItemsTest.java
+./java/awt/MenuItem/GiantFontTest/GiantFontTest.java
+
+-----
+Title: [JDK-8339995] Open source several AWT focus tests - series 6
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert few closed AWT focus applet test and opensource
+./java/awt/Focus/InactiveWindowTest/InactiveFocusRace.java
+./java/awt/Focus/NativePrintDialog/InitialFocusTest.java
+./java/awt/Focus/EmptyWindowKeyTest/EmptyWindowKeyTest.java
+./java/awt/Focus/KeyEventPostProcessor/ConsumedKeyEventTest/ConsumedKeyEventTest.java
+
+-----
+Title: [JDK-8340077] Open source few Checkbox tests - Set2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few Checkbox tests
+OS: generic
+
+-----
+Title: [JDK-8340084] Open source AWT Frame related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert these Frame applet tests into main and opensource
+./java/awt/Frame/FrameSetMinimumSizeTest/FrameSetMinimumSizeTest.java
+./java/awt/Frame/EmptyFrameTest/EmptyFrameTest.java
+./java/awt/Frame/FrameLayoutTest/FrameLayoutTest.java
+./java/awt/Frame/DefaultLocationTest/DefaultLocationTest.java
+./java/awt/Frame/PackTwiceTest/PackTwiceTest.java
+
+-----
+Title: [JDK-8340143] Open source several Java2D rendering loop tests.
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source some Java 2D rendering loop tests.
+
+-----
+Title: [JDK-8340146] ZGC: TestAllocateHeapAt.java should not run with UseLargePages
+Priority: P3
+Type: Bug
+Component: hotspot
+Description: TestAllocateHeapAt.java expects that creating the heap file works in the current director (`.`). But when using persistent hugepages (-XX:+UseLargePages) this would require the filesystem to be a HugeTLBFS.
+I propose that we do not allow running these tests with persistent hugepages.
+The following two tests fail in the JDK24 CI:
+gc/z/TestAllocateHeapAt.java
+gc/x/TestAllocateHeapAt.java
+This is seen with hugepages testing. We see warnings in the output then the VM fails to start:
+----------System.err:(36/2261)----------
+Java HotSpot(TM) 64-Bit Server VM warning: Failed to reserve and commit memory using large pages. req_addr: 0x0000000399000000 bytes: 18907922432
+stdout: [[0.005s][info][gc,init] Initializing The Z Garbage Collector
+[0.005s][info][gc,init] Version: 24-ea+16-1680 (fastdebug)
+[0.005s][info][gc,init] Using deprecated non-generational mode
+[0.005s][info][gc,init] NUMA Support: Disabled
+[0.005s][info][gc,init] CPUs: 12 total, 12 available
+[0.005s][info][gc,init] Memory: 72098M
+[0.005s][info][gc,init] Large Page Support: Enabled (Explicit)
+[0.005s][info][gc,init] GC Workers: 1 (dynamic)
+[0.005s][info][gc,init] Address Space Type: Contiguous/Unrestricted/Complete
+[0.005s][info][gc,init] Address Space Size: 512M x 3 = 1536M
+[0.005s][info][gc,init] Heap Backing File: ./#506511511
+[0.005s][info][gc,init] Heap Backing Filesystem: other (0x58465342)
+[0.005s][error][gc     ] -XX:+UseLargePages (without -XX:+UseTransparentHugePages) can only be enabled when using a hugetlbfs filesystem
+[0.006s][info ][gc,init] Runtime Workers: 1
+[0.006s][info ][gc     ] Using The Z Garbage Collector
+];
+stderr: [Java HotSpot(TM) 64-Bit Server VM warning: Option ZGenerational was deprecated in version 23.0 and will likely be removed in a future release.
+Java HotSpot(TM) 64-Bit Server VM warning: Non-generational ZGC is deprecated.
+Error: Could not create the Java Virtual Machine.
+Error: A fatal exception has occurred. Program will exit.
+]
+exitValue = 1
+
+-----
+Title: [JDK-8340164] Open source few Component tests - Set1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few Component tests
+
+-----
+Title: [JDK-8340173] Open source some Component/Panel/EventQueue tests - Set2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source some Component/Panel/EventQueue tests
+
+-----
+Title: [JDK-8340193] Open source several AWT Dialog tests - Batch 1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source these AWT Mouse tests:
+java/awt/Dialog/FileDialogIconTest/FileDialogIconTest.java
+java/awt/Dialog/FileDialogWrongNameCrash/FileDialogWrongNameCrash.java
+java/awt/Dialog/DialogResizeTest/DialogResizeTest.java
+java/awt/Dialog/GetLocationTest_1/GetLocationTest_1.java
+java/awt/Dialog/DialogIconTest/DialogIconTest.java
+OS: generic
+
+-----
+Title: [JDK-8340228] Open source couple more miscellaneous AWT tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Clean up and open source couple more AWT regression tests
+
+-----
+Title: [JDK-8340271] Open source several AWT Robot tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Few robot tests to be converted and opensourced
+./java/awt/Robot/RobotScrollTest/RobotScrollTest.java
+./java/awt/Robot/CreateScreenCapture/CreateScreenCapture.java
+./java/awt/Robot/Capture256/Capture256mode.java
+along with this
+./java/awt/datatransfer/ClipbrdPastedImageTest/ClipbrdPastedImageTest.java
+
+-----
+Title: [JDK-8340279] Open source several AWT Dialog tests - Batch 2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source these AWT Dialog tests:
+java/awt/Dialog/PrintToFileTest/PrintToFileRevoked.java
+java/awt/Dialog/PrintToFileTest/PrintToFileGranted.java
+java/awt/Dialog/TopmostModalDialogTest/TopmostModalDialogTest.java
+java/awt/Dialog/FileDialogFilterTest/FileDialogFilterTest.java
+java/awt/Dialog/DialogSystemMenu/DialogSystemMenu.java
+OS: generic
+
+-----
+Title: [JDK-8340332] Open source mixed AWT tests - Set3
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source Mixed AWT tests
+OS: generic
+
+-----
+Title: [JDK-8340366] Open source several AWT Dialog tests - Batch 3
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source these AWT Dialog tests:
+java/awt/Dialog/DialogModalityTest/ModalDialogTest.java
+java/awt/Dialog/DialogModalityTest/DialogModalityTest.java
+java/awt/Dialog/DialogResizeTest2/DialogResizeTest2.java
+java/awt/Dialog/HideDialogTest/HideDialogTest.java
+java/awt/Dialog/FileDialogUserFilterTest/FileDialogUserFilterTest.java
+OS: generic
+
+-----
+Title: [JDK-8340367] Opensource few AWT image tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert and opensource few Image tests
+./java/awt/image/MemoryImageSource/ImageOffsetTest/ImageOffsetTest.java
+./java/awt/image/TransformImage.java
+./java/awt/image/BufferedImage/GrayAATextTest.java
+./java/awt/image/GrayAlpha/GrayAlpha.java
+
+-----
+Title: [JDK-8340393] Open source closed choice tests #2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: ./java/awt/Choice/ChoiceBigTest/ChoiceBigTest.java
+./java/awt/Choice/CheckChoiceTest/CheckChoiceTest.java
+./java/awt/Choice/DisabledList/DisabledList.java
+./java/awt/Choice/ChoiceFocusGainTest/ChoiceFocusTest.java
+
+-----
+Title: [JDK-8340407] Open source a few more Component related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Clean up and open source few more java.awt.Component related regression tests
+
+-----
+Title: [JDK-8340417] Open source some MenuBar tests - Set1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source some MenuBar tests
+
+-----
+Title: [JDK-8340432] Open source some MenuBar tests - Set2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source some MenuBar tests
+
+-----
+Title: [JDK-8340433] Open source closed choice tests #3
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: ./java/awt/Choice/DeadlockTest/DeadlockTest.java
+./java/awt/Choice/SetFontTest/SetFontTest.java
+./java/awt/Choice/ChoicePosTest/ChoicePosTest.java
+
+-----
+Title: [JDK-8340437] Open source few more AWT Frame related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert these Frame applet tests into main and opensource
+./java/awt/Frame/DisabledParentOfToplevel/DisabledParentOfToplevel.java
+./java/awt/Frame/IMStatusBar/IMStatusBar.java
+./java/awt/Frame/FrameVisualTest/FrameVisualTest.java
+./java/awt/Frame/MultiScreenTest/MultiScreenTest.java
+./java/awt/Frame/WarningWindowTest/WarningWindowTest.java
+
+-----
+Title: [JDK-8340458] Open source additional Component tests (part 2)
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Clean up and open source few more tests related to java.awt.Component
+
+-----
+Title: [JDK-8340555]  Open source DnD tests - Set4
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few DnD tests
+OS: generic
+
+-----
+Title: [JDK-8340560] Open Source several AWT/2D font and rendering tests
+Priority: P4
+Type: Bug
+Component: client-libs
+
+-----
+Title: [JDK-8340605] Open source several AWT PopupMenu tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source several AWT PopupMenu tests.
+
+-----
+Title: [JDK-8340621] Open source several AWT List tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert and opensource few AWT List tests
+./java/awt/List/DisabledListIsGreyTest/DisabledListIsGreyTest.java
+./java/awt/List/MultiSelectionListCrashTest/MultiSelectionListCrashTest.java
+./java/awt/List/SelectedItemVisibilityTest/SelectedItemVisibilityTest.java
+./java/awt/List/ListFrameResizeTest/ListFrameResizeTest.java
+./java/awt/List/ScrollbarPositionTest/ScrollbarPositionTest.java
+
+-----
+Title: [JDK-8340625] Open source additional Component tests (part 3)
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Clean up and open source couple more java.awt.Component related regression tests.
+
+-----
+Title: [JDK-8340639] Open source few more AWT List tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert and opensource few List tests
+./java/awt/List/HorizScrollWorkTest/HorizScrollWorkTest.java
+./java/awt/List/HorizScrollbarEraseTest/HorizScrollbarEraseTest.java
+./java/awt/List/ListSmoothScrollingTest/ListSmoothScrollingTest.java
+./java/awt/List/ScrollbarPresenceTest/ScrollbarPresenceTest.java
+./java/awt/List/SetForegroundTest/SetForegroundTest.java
+
+-----
+Title: [JDK-8340713]  Open source DnD tests - Set5
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few DnD tests
+OS: generic
+
+-----
+Title: [JDK-8340784] Remove PassFailJFrame constructor with screenshots
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The PassFailJFrame constructor which accepts `boolean screenCapture` can be removed. It was added in JDK-8294535 where the screenshot feature was added.
+At the same time, JDK-8294535 added Builder class which provides simplified configuration of PassFailJFrame.
+I haven't found any usage of the PassFailJFrame which passes the boolean parameter. Remove this constructor in favour using the Builder.
+Other constructors are used in tests, they can't be removed unless these tests are refactored.
+
+-----
+Title: [JDK-8340790] Open source several AWT Dialog tests - Batch 4
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source these AWT Dialog tests:
+java/awt/Dialog/JaFileDialogFont/JaFileDialogFont.java
+java/awt/Dialog/FileDialogGetFileTest/FileDialogGetFileTest.java
+java/awt/Dialog/EnabledResetTest/EnabledResetTest.java
+java/awt/Dialog/ChoiceModalDialogTest/ChoiceModalDialogTest.java
+java/awt/Dialog/DialogBackgroundTest/DialogBackgroundTest.java
+OS: generic
+
+-----
+Title: [JDK-8340809] Open source few more AWT PopupMenu tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few more AWT PopupMenu tests
+
+-----
+Title: [JDK-8340874] Open source some of the AWT Geometry/Button tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source some of the awt/geom and awt/Button tests
+OS: generic
+
+-----
+Title: [JDK-8340907] Open source closed frame tests # 2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: java/awt/Frame/FrameSetCursorTest.java
+java/awt/Frame/InsetCorrectionTest.java
+java/awt/Frame/InitialIconifiedTest.java
+java/awt/Frame/DeiconifyClipTest.java
+
+-----
+Title: [JDK-8340966] Open source few Checkbox and Cursor tests - Set1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few Checkbox and Cursor tests
+
+-----
+Title: [JDK-8340967] Open source few Cursor tests - Set2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few Cursor tests
+
+-----
+Title: [JDK-8340978] Open source few DnD tests - Set6
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few DnD tests
+OS: generic
+
+-----
+Title: [JDK-8340985] Open source some Desktop related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Clean up and open source couple regression tests related to java.awt.Desktop class.
+
+-----
+Title: [JDK-8341000] Open source some of the AWT Window tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open Source some of the AWT ImageClass/Window tests
+OS: generic
+
+-----
+Title: [JDK-8341004] Open source AWT FileDialog related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source AWT FileDialog related tests
+
+-----
+Title: [JDK-8341072] Open source several AWT Canvas and Rectangle related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source these AWT Dialog tests:
+java/awt/Canvas/MultiDitherTest/MultiDitherTest.java
+java/awt/Canvas/MultiGraphicsTest/MultiGraphicsTest.java
+java/awt/Canvas/NoEventsLeakTest/NoEventsLeakTest.java
+java/awt/Rectangle/IntersectionTest/IntersectionTest.java
+OS: generic
+
+-----
+Title: [JDK-8341128] open source some 2d graphics tests
+Priority: P4
+Type: Bug
+Component: client-libs
+
+-----
+Title: [JDK-8341148] Open source several Choice related tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Clean up and open source several regression tests related to java.awt.Choice class
+
+-----
+Title: [JDK-8341162] Open source some of the AWT window test
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source some of the AWT window test
+OS: generic
+
+-----
+Title: [JDK-8341170] Open source several Choice related tests (part 2)
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Clean up and open source a few more Choice related regression tests.
+
+-----
+Title: [JDK-8341177] Opensource few List and a Window test
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Convert and opensource few List and a Window test
+./java/awt/List/MouseDraggedOriginatedByScrollBarTest/MouseDraggedOriginatedByScrollBarTest.java
+./java/awt/List/ActionEventWhenHitEnterTest/ActionEventWhenHitEnterTest.java
+./java/awt/List/ListAddPerfTest/ListAddPerfTest.java
+./java/awt/Window/4189244/bug4189244.java
+
+-----
+Title: [JDK-8341191] Open source few more AWT FileDialog tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few more AWT FileDialog tests
+
+-----
+Title: [JDK-8341239] Open source closed frame tests # 3
+Priority: P4
+Type: Bug
+Component: client-libs
+
+-----
+Title: [JDK-8341257] Open source few DND tests - Set1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few DND tests
+
+-----
+Title: [JDK-8341258] Open source few various AWT tests - Set1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few various AWT tests
+
+-----
+Title: [JDK-8341278] Open source few TrayIcon tests - Set7
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few TrayIcon tests
+OS: generic
+
+-----
+Title: [JDK-8341298] Open source more AWT window tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source more AWT window tests
+OS: generic
+
+-----
+Title: [JDK-8341373] Open source closed frame tests # 4
+Priority: P4
+Type: Bug
+Component: client-libs
+
+-----
+Title: [JDK-8341378] Open source few TrayIcon tests - Set8
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source few TrayIcon tests
+OS: generic
+
+-----
+Title: [JDK-8341447] Open source closed frame tests # 5
+Priority: P4
+Type: Bug
+Component: client-libs
+
+-----
+Title: [JDK-8341779] [REDO BACKPORT] type annotations are not visible to javac plugins across compilation boundaries (JDK-8225377)
+Priority: P3
+Type: Bug
+Component: tools
+Description: javac fails to associate type annotations with TypeMirrors for some symbols loaded from the classpath, which prevents plugins from accessing those annotations across compilation boundaries. The annotations are present if the same symbol is compiled from source in the compilation where the plugin runs.
+=== ./test/B.java
+abstract class B extends A {}
+=== ./test/A.java
+import java.lang.annotation.ElementType;
+import java.util.List;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+@Target(ElementType.TYPE_USE)
+@Retention(RetentionPolicy.RUNTIME)
+@interface TypeAnnotation {}
+abstract class A implements List {}
+=== ./plugin/p/P.java
+package p;
+import com.sun.source.util.JavacTask;
+import com.sun.source.util.Plugin;
+import com.sun.source.util.TaskEvent;
+import com.sun.source.util.TaskListener;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
+public class P implements Plugin {
+@Override
+public String getName() {
+return "P";
+}
+@Override
+public void init(JavacTask javacTask, String... strings) {
+javacTask.addTaskListener(
+new TaskListener() {
+@Override
+public void finished(TaskEvent e) {
+if (e.getKind() != TaskEvent.Kind.ENTER) {
+return;
+}
+TypeElement b = javacTask.getElements().getTypeElement("B");
+for (TypeMirror i :
+((TypeElement) ((DeclaredType) b.getSuperclass()).asElement()).getInterfaces()) {
+System.err.printf("%s %s\n", i, i.getAnnotationMirrors());
+}
+}
+});
+}
+}
+=== ./plugin/module-info.java
+module p {
+requires transitive jdk.compiler;
+provides com.sun.source.util.Plugin with p.P;
+}
+===
+$ javac $(find plugin -name '*.java')
+# when both compilation units are compiled from source, the type annotations are visible
+$ javac --processor-module-path plugin -Xplugin:P test/A.java test/B.java
+java.util.List
+java.util.List
+# when 'A' is loaded from the classpath, the type annotations on its supertype are not visible
+$ javac --processor-module-path plugin -Xplugin:P -classpath test test/B.java
+java.util.List
+
+-----
+Title: [JDK-8225377] type annotations are not visible to javac plugins across compilation boundaries
+Priority: P3
+Type: Bug
+Component: tools
+Description: javac fails to associate type annotations with TypeMirrors for some symbols loaded from the classpath, which prevents plugins from accessing those annotations across compilation boundaries. The annotations are present if the same symbol is compiled from source in the compilation where the plugin runs.
+=== ./test/B.java
+abstract class B extends A {}
+=== ./test/A.java
+import java.lang.annotation.ElementType;
+import java.util.List;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+@Target(ElementType.TYPE_USE)
+@Retention(RetentionPolicy.RUNTIME)
+@interface TypeAnnotation {}
+abstract class A implements List {}
+=== ./plugin/p/P.java
+package p;
+import com.sun.source.util.JavacTask;
+import com.sun.source.util.Plugin;
+import com.sun.source.util.TaskEvent;
+import com.sun.source.util.TaskListener;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
+public class P implements Plugin {
+@Override
+public String getName() {
+return "P";
+}
+@Override
+public void init(JavacTask javacTask, String... strings) {
+javacTask.addTaskListener(
+new TaskListener() {
+@Override
+public void finished(TaskEvent e) {
+if (e.getKind() != TaskEvent.Kind.ENTER) {
+return;
+}
+TypeElement b = javacTask.getElements().getTypeElement("B");
+for (TypeMirror i :
+((TypeElement) ((DeclaredType) b.getSuperclass()).asElement()).getInterfaces()) {
+System.err.printf("%s %s\n", i, i.getAnnotationMirrors());
+}
+}
+});
+}
+}
+=== ./plugin/module-info.java
+module p {
+requires transitive jdk.compiler;
+provides com.sun.source.util.Plugin with p.P;
+}
+===
+$ javac $(find plugin -name '*.java')
+# when both compilation units are compiled from source, the type annotations are visible
+$ javac --processor-module-path plugin -Xplugin:P test/A.java test/B.java
+java.util.List
+java.util.List
+# when 'A' is loaded from the classpath, the type annotations on its supertype are not visible
+$ javac --processor-module-path plugin -Xplugin:P -classpath test test/B.java
+java.util.List
+
+-----
+Title: [JDK-8341972] java/awt/dnd/DnDRemoveFocusOwnerCrashTest.java timed out after JDK-8341257
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The following test timed out in the JDK24 CI:
+java/awt/dnd/DnDRemoveFocusOwnerCrashTest.java
+Here's a snippet from the log file:
+#section:main
+----------messages:(9/356)----------
+command: main DnDRemoveFocusOwnerCrashTest
+reason: User specified action: run main DnDRemoveFocusOwnerCrashTest
+started: Fri Oct 11 04:55:22 UTC 2024
+Mode: othervm
+Additional options from @modules: --add-modules java.desktop
+Timeout information:
+--- Timeout information end.
+finished: Fri Oct 11 05:00:39 UTC 2024
+elapsed time (seconds): 316.686
+----------configuration:(3/43)----------
+Boot Layer
+add modules: java.desktop
+----------System.out:(1/37)----------
+Timeout signalled after 240 seconds
+----------System.err:(1/16)----------
+STATUS:Passed.
+----------rerun:(46/5301)*----------
+result: Error. Program `c:\ade\mesos\work_dir\jib-master\install\jdk-24+20-2248\windows-x64.jdk\jdk-24\bin\java' timed out (timeout set to 240000ms, elapsed time including timeout handling was 316670ms).
+The test did pass while the timeout handler was running.
+OS: windows
+
+-----
+Title: [JDK-8342075] HttpClient: improve HTTP/2 flow control checks
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: The HttpClient should report flow control issues to the server as FLOW_CONTROL_ERROR.
+
+-----
+Title: [JDK-8342376] More reliable OOM handling in ExceptionDuringDumpAtObjectsInitPhase test
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: Found a test bug while testing JDK-8341913 with Shenandoah. The allocation that follows OOM almost always succeeds with Shenandoah. Actually, it succeeds with other GCs as well, it just so happens that other GCs throw OOM with "GC overhead limit exceeded".
+
+-----
+Title: [JDK-8342524] Use latch in AbstractButton/bug6298940.java instead of delay
+Priority: P5
+Type: Bug
+Component: client-libs
+Description: Use a CountDownLatch in javax/swing/AbstractButton/6298940/bug6298940.java instead of delay.
+The latch provides a direct way to synchronise EDT and main thread, and the test will finish quicker.
+
+-----
+Title: [JDK-8343019] Primitive caches must use boxed instances from the archive
+Priority: P3
+Type: Bug
+Component: core-libs
+Description: This is forked from JDK-8342642 and filed as a general issue for archived boxed Integer cache when it's recreated at runtime. In short, current code drops the entire primitive cache when the CDS archived version of the cache is too short. This poses a problem with code that uses CDS archived cache instances, since the boxed equality would break when comparing the CDS-archived value and the Integer cached value recreated at runtime.
+https://github.com/openjdk/jdk/pull/21672#issuecomment-2434359711 discusses a possible fix for the Integer cache. JDK-8342642 has additional details.
+
+-----
+Title: [JDK-8343103] Enable debug logging for vmTestbase/nsk/jvmti/scenarios/sampling/SP05/sp05t003/TestDescription.java
+Priority: P4
+Type: Sub-task
+Component: hotspot
+Description: Enable debug logging in the test to get more details about test failures (JDK-8305010)
+OS: generic
+
+-----
+Title: [JDK-8343144] UpcallLinker::on_entry racingly clears pending exception with GC safepoints
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: In UpcallLinker::on_entry we clear_pending_exception() right before transitioning from native to Java. This clears an oop on the thread that might be concurrently scanned by the GC. The GC may read the oop and update its address to a new location, without using any atomics at all (because we are in a safepoint and nobody should be messing around with it concurrently). The lack of atomics means that the following interleaving is possible:
+GCThread: old_oop = JT1-_pending_exception
+JT1: clear_pending_exception()
+GCThread: JT1-_pending_exception = new_addr(old_oop);
+Other interesting things can happen as well. But it's safe to say we shouldn't be messing around with oops in_native concurrently to GC safepoints.
+
+-----
+Title: [JDK-8343170] java/awt/Cursor/JPanelCursorTest/JPanelCursorTest.java does not show the default cursor
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: java/awt/Cursor/JPanelCursorTest/JPanelCursorTest.java does not show the default cursor instead it shows the move cursor on OL-9-3 & windows-x64-11
+Step to reproduce
+------------------------
+1) Run java/awt/Cursor/JPanelCursorTest/JPanelCursorTest.java
+2) When the frame is visible, move the mouse pointer to the left side of the frame ( Default component). If you dn't see the default cursor then the bug is reproduced
+
+-----
+Title: [JDK-8343754] Problemlist jdk/jfr/event/oldobject/TestShenandoah.java after JDK-8279016
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: See comment in JDK-8279016. I overlooked the case when we just run with Shenandoah without explicitly specifying -XX:+UseShenandoahGC. The test should be disabled in that mode as well.
+
+-----
+Title: [JDK-8343855] HTTP/2 ConnectionWindowUpdateSender may miss some unprocessed DataFrames from closed streams
+Priority: P3
+Type: Bug
+Component: core-libs
+Description: JDK-8342075 has introduced more flow controls checks, but also introduced a race condition where DataFrames for closed streams may fail to be discounted from the connection window.
+The consequence is that WINDOW_UPDATE frames for the connection window may not be sent when they should, preventing the server from making progress and stalling the connection.
+This can be shown by modifying the StreamFlowControlTest to send less but bigger frames (e.g. chunks of 1600 bytes instead of chunks of 12 bytes). With such a modification the test can be seen failing intermittently, when sameClient=true.
+
+-----
+Title: [JDK-8343936] Adjust timeout in test javax/management/monitor/DerivedGaugeMonitorTest.java
+Priority: P4
+Type: Bug
+Component: core-svc
+Description: This is a very long-standing, problem-listed failure.
+All failures are with -Xcomp.
+The test does have a timing sensitivity, a 1 second wait:
+test/jdk/javax/management/monitor/DerivedGaugeMonitorTest.java:
+242             my.cdl.await(1000, TimeUnit.MILLISECONDS);
+This should be increased to cope with delays caused by -Xcomp compilation.
+
+-----
+Title: [JDK-8344361] Restore null return for invalid services from legacy providers
+Priority: P3
+Type: Bug
+Component: security-libs
+Description: A DESCRIPTION OF THE PROBLEM :
+In Provider.java around line 1285, the following code exists.
+Service s = serviceMap.get(key);
+if (s == null) {
+s = legacyMap.get(key);
+if (s != null && !s.isValid()) {
+legacyMap.remove(key, s);
+}
+}
+There needs to be a "s = null;" after legacyMap.remove() as otherwise a service which fails  the isValid() test will be returned as is resulting in a failure later.
+Unfortunately this appears to happen with providers using the legacy format which results in NullPointerException further down the track when the JCA tries to create an object using a Service with a null class name. It's not immediately clear how legacy parsing is resulting in the invalid services, but they are created with a null class name. For what it's worth this has only started happening with Java 21.
+REGRESSION : Last worked in version 17.0.13
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+Requesting an algorithm which does not exist will cause this to happen (sometimes). It also seems to get triggered when attempts are made to match keys to signature providers which we think is why it shows up with the PKCS11 provider.
+The code is incorrect by inspection though, if s.isValid() is false s should be getting returned as null, not as an invalid service class.
+EXPECTED VERSUS ACTUAL BEHAVIOR :
+EXPECTED -
+Request for a service which cannot be fully constructed should result in a NoSuchAlgorithmException not a NullPointerException.
+ACTUAL -
+NullPointerException
+CUSTOMER SUBMITTED WORKAROUND :
+Catching NullPointerException and hoping it can be treated like NoSuchAlgorithmException.
+FREQUENCY : always
+OS: generic
+
+-----
+Title: [JDK-8344414] ZGC: Another division by zero in rule_major_allocation_rate
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: We are still running into this issue (ubsan is enabled in the build) :
+test compiler/uncommontrap/TestDeoptOOM.java#Z  shows this on Linux x86_64
+jdk/src/hotspot/share/gc/z/zDirector.cpp:490:78: runtime error: division by zero
+#0 0x7fac474e0493 in rule_major_allocation_rate src/hotspot/share/gc/z/zDirector.cpp:490
+#1 0x7fac474e0493 in start_gc src/hotspot/share/gc/z/zDirector.cpp:836
+#2 0x7fac474e0493 in ZDirector::run_thread() src/hotspot/share/gc/z/zDirector.cpp:926
+#3 0x7fac4b04b698 in ZThread::run_service() src/hotspot/share/gc/z/zThread.cpp:29
+#4 0x7fac48707249 in ConcurrentGCThread::run() src/hotspot/share/gc/shared/concurrentGCThread.cpp:48
+#5 0x7fac4ab58bea in Thread::call_run() src/hotspot/share/runtime/thread.cpp:232
+#6 0x7fac4a17fd22 in thread_native_entry src/hotspot/os/linux/os_linux.cpp:858
+#7 0x7fac4f7dc6e9 in start_thread (/lib64/libpthread.so.0+0xa6e9) (BuildId: 938e42b7e407d175ee3ef9a89c038168101d330c)
+#8 0x7fac4ed0f58e in clone (/lib64/libc.so.6+0x11858e) (BuildId: 74f77bf013a66413c77197c121955e029c32d259)
+
+-----
+Title: [JDK-8344925] translet-name ignored when package-name is also set
+Priority: P4
+Type: Bug
+Component: xml
+Description: Background
+GraalVM native executables do not allow loading classes at runtime due to the closed world assumption. To make XSLT work with them, we generate XSLT Translet classes at build time and let native-image compile them into the native executable. For that to work reliably, we need to be able to set the name of the generated class so that we are then able to find the class and pass it to the native compiler.
+Steps to reproduce
+To generate a Translet class for a given XSL file, we perform steps similar to the following:
+```
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.stream.StreamSource;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Comparator;
+public class Main {
+public static void main(String[] args) throws Exception {
+TransformerFactory tf = TransformerFactory.newInstance();
+tf.setAttribute("generate-translet", true);
+tf.setAttribute("translet-name", "MyTranslet");
+tf.setAttribute("package-name", "org.acme");
+tf.setAttribute("destination-directory", "test");
+Path test = Path.of("test");
+if (Files.exists(test)) {
+Files.walk(test).sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
+}
+File xslFile = new File(args[0]);
+tf.newTemplates(new StreamSource(Files.newInputStream(xslFile.toPath())));
+Files.list(Path.of("test/org/acme")).forEach(System.out::println);
+}
+}
+```
+When this program is compiled through javac Main.java and run via java Main test.xsl, where test.xsl is any simple XSL file, such as
+```
+http://www.w3.org/1999/XSL/Transform"
+```
+then, we expect to find the generated translet file under test/org/acme/MyTranslet.class. In reality, the generated translet is under test/org/acme/die_verwandlung.class.
+Analysis
+The execution flow goes via com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl.newTemplates(Source), where a new com.sun.org.apache.xalan.internal.xsltc.trax.XSLTC is created and its setClassName(String) and setPackageName(String) are called.
+XSLTC.setClassName(String) does some sanitization of the passed className and if the _packageName field is set, it sets the _className field to _packageName + '.' + name.
+Because XSLTC._packageName is initialized to "die.verwandlung", then, after the first call of setClassName("MyTranslet"), the value of _packageName is "die.verwandlung.MyTranslet".
+The XSLTC.setPackageName("org.acme") called afterwards, first sets the _packageName field to the passed value and then, if _className != null, it calls setClassName(_className).
+In our situation, it effectively means calling setClassName("die.verwandlung.MyTranslet").
+The sanitization of the passed value done within this second setClassName() call transforms "die.verwandlung.MyTranslet" into "die_verwandlung".
+Afterwards, the _className field is set to _packageName + '.' + name which is "org.acme" + '.' + "die_verwandlung" in our case.
+Observation: the ASF Xalan does not initialize XSLTC._packageName to "die.verwandlung" and therefore the reproducer code works as expected there.
+Possible solutions
+A. In TransformerFactoryImpl.newTemplates(Source), call XSLTC.setPackageName(String) before XSLTC.setClassName(String).
+B. In XSLTC.setPackageName(String), instead of calling setClassName(_className), pass only the simple class name extracted from the _className field to setClassName(String).
+C. Make XSLTC.setClassName(String) throw an exception when it is called with a className containig ., / or \; document that it expects a simple name, document that it sets _className to a fully qualified name when _packageName is set; move all sanitization to callers of XSLTC.setClassName(String). (This implies solution B).
+
+-----
+Title: [JDK-8345134] Test sun/security/tools/jarsigner/ConciseJarsigner.java failed: unable to find valid certification path to requested target
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: Error:
+This jar contains unsigned entries which have not been integrity-checked.
+This jar contains entries whose certificate chain is invalid. Reason: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+This jar contains entries whose signer certificate is self-signed.
+Warning:
+This jar contains signatures that do not include a timestamp. Without a timestamp, users may not be able to validate this jar after any of the signer certificates expire (as early as 2025-11-28).
+Re-run with the -verbose and -certs options for more details.
+sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+at java.base/sun.security.validator.PKIXValidator.doBuild(PKIXValidator.java:387)
+at java.base/sun.security.validator.PKIXValidator.engineValidate(PKIXValidator.java:270)
+at java.base/sun.security.validator.Validator.validate(Validator.java:256)
+at java.base/sun.security.validator.Validator.validate(Validator.java:223)
+at jdk.jartool/sun.security.tools.jarsigner.Main.validateCertChain(Main.java:2506)
+at jdk.jartool/sun.security.tools.jarsigner.Main.certsAndTSInfo(Main.java:2144)
+at jdk.jartool/sun.security.tools.jarsigner.Main.signerInfo(Main.java:2100)
+at jdk.jartool/sun.security.tools.jarsigner.Main.verifyJar(Main.java:881)
+at jdk.jartool/sun.security.tools.jarsigner.Main.run(Main.java:304)
+at jdk.jartool/sun.security.tools.jarsigner.Main.main(Main.java:138)
+Caused by: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+at java.base/sun.security.provider.certpath.SunCertPathBuilder.build(SunCertPathBuilder.java:148)
+at java.base/sun.security.provider.certpath.SunCertPathBuilder.engineBuild(SunCertPathBuilder.java:129)
+at java.base/java.security.cert.CertPathBuilder.build(CertPathBuilder.java:295)
+at java.base/sun.security.validator.PKIXValidator.doBuild(PKIXValidator.java:382)
+... 9 more
+sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+at java.base/sun.security.validator.PKIXValidator.doBuild(PKIXValidator.java:387)
+at java.base/sun.security.validator.PKIXValidator.engineValidate(PKIXValidator.java:270)
+at java.base/sun.security.validator.Validator.validate(Validator.java:256)
+at java.base/sun.security.validator.Validator.validate(Validator.java:223)
+at jdk.jartool/sun.security.tools.jarsigner.Main.validateCertChain(Main.java:2506)
+at jdk.jartool/sun.security.tools.jarsigner.Main.certsAndTSInfo(Main.java:2144)
+at jdk.jartool/sun.security.tools.jarsigner.Main.signerInfo(Main.java:2100)
+at jdk.jartool/sun.security.tools.jarsigner.Main.verifyJar(Main.java:881)
+at jdk.jartool/sun.security.tools.jarsigner.Main.run(Main.java:304)
+at jdk.jartool/sun.security.tools.jarsigner.Main.main(Main.java:138)
+Caused by: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+at java.base/sun.security.provider.certpath.SunCertPathBuilder.build(SunCertPathBuilder.java:148)
+at java.base/sun.security.provider.certpath.SunCertPathBuilder.engineBuild(SunCertPathBuilder.java:129)
+at java.base/java.security.cert.CertPathBuilder.build(CertPathBuilder.java:295)
+at java.base/sun.security.validator.PKIXValidator.doBuild(PKIXValidator.java:382)
+... 9 more
+Exit value: 20
+
+-----
+Title: [JDK-8345341] Fix incorrect log message in JDI stop002t test
+Priority: P4
+Type: Bug
+Component: core-svc
+Description: The following log message:
+log.display("TEST #5: Caught expected exception while in loop: " + t);
+is incorrect. It should be:
+log.display("TEST #5: Caught expected exception while in sleep: " + t);
+It's a copy-n-paste bug from another section of the test that dealt with loops.
+
+-----
+Title: [JDK-8345598] Upgrade NSS binaries for interop tests
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: Current version is 3.107 https://ftp.mozilla.org/pub/security/nss/releases/NSS_3_107_RTM/
+
+-----
+Title: [JDK-8345838] Remove the appcds/javaldr/AnonVmClassesDuringDump.java test
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: In cds/appcds/javaldr/AnonVmClassesDuringDump.java, the setting of dynamicMode is incorrect. It is always false.
+public static final boolean dynamicMode =
+Boolean.getBoolean(System.getProperty("test.dynamic.cds.archive", "false"));
+The correct way should be:
+Boolean.getBoolean("test.dynamic.cds.archive")
+Or it could just be:
+CDSTestUtils.DYNAMIC_DUMP
+After correcting the setting, we noticed the behavior is the same regardless of dynamicMode, i.e. only the following check passed:
+output - output.shouldNotMatch(pattern)
+For the last test which checks the content of the archive, there are classes in the Shared Lambda Dictionary such as java.lang.module.ModuleFinder$2$$Lambda/0x800000023
+so no point to run the test on the archive content.
+Removing the entire test.
+
+-----
+Title: [JDK-8346049] jdk/test/lib/security/timestamp/TsaServer.java warnings
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: The warning
+* For target support_test_lib_test-lib_classes__the.BUILD_TEST_LIB_JAR_batch:
+/home/lmesnik/ws/jdk-lib/open/test/lib/jdk/test/lib/security/timestamp/TsaServer.java:56: warning: [this-escape] possible 'this' escape before subclass is fully initialized
+setHandler(handler);
+And:
+open/test/lib/jdk/test/lib/security/timestamp/TsaServer.java:42: warning: [try] auto-closeable resource TsaServer has a member method close() that could throw InterruptedException
+
+-----
+Title: [JDK-8347083] Incomplete logging in nsk/jvmti/ResourceExhausted/resexhausted00* tests
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: Tests in nsk/jvmti/ResourceExhausted namely resexhausted001, resexhausted002, resexhausted003 have the same logging statement
+Creating threads...
+Can't reproduce OOME due to a limit on iterations/execution time. Test was useless.
+when they are unable to reproduce OOME.
+This is not a problem when the tests are run individually. However, when resexhausted004, which in turn runs all the 3 tests, is run we are not able to distinguish which test is logging the message.
+
+-----
+Title: [JDK-8347296] WinInstallerUiTest fails in local test runs if the path to test work directory is longer that regular
+Priority: P4
+Type: Bug
+Component: tools
+Description: WinInstallerUiTest produces several msi packages, some of which have very long names, making msi.exe fail to unpack them.
+This is a known issue with the msi.exe, which can't handle paths longer than 260 characters.
+If the path to the test work dir is long enough, some of the test cases from the WinInstallerUiTest test start failing.
+OS: windows
+
+-----
+Title: [JDK-8347373] HTTP/2 flow control checks may count unprocessed data twice
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: The HTTP/2 flow control logic has a potential race condition where some of the  unprocessed data may be counted twice for the connection window.
+A protocol exception may be raised incorrectly if there are several concurrent streams producing data and the connection window is close from being exhausted.
+
+-----
+Title: [JDK-8347506] Compatible OCSP readtimeout property with OCSP timeout
+Priority: P3
+Type: Bug
+Component: security-libs
+Description: A new set of timeout values and enhancements to existing OCSP timeout values was first introduced in JDK-21 via JDK-8179502.  The backport to JDK-17 introduced a small change to the default setting for the `com.sun.security.ocsp.readtimeout` property.  This issue carries this default change for the property forward.  The change simply makes the default for the aforementioned property the same as whatever the value of the `com.sun.security.ocsp.timeout` System property is, rather than a 15000ms default in the original fix.
+Refer to the CSRs:   https://bugs.openjdk.org/browse/JDK-8337407 and the withdrawn CSR https://bugs.openjdk.org/browse/JDK-8345114 (the withdrawn CSR has additional discussions in the comment section)
+
+-----
+Title: [JDK-8347596] Update HSS/LMS public key encoding
+Priority: P3
+Type: Bug
+Component: security-libs
+Description: https://www.rfc-editor.org/rfc/rfc9708.html#name-changes-since-rfc-8708:
+The pk-HSS-LMS-HashSig definition is updated to reflect no ASN.1 wrapping for the public key.
+We still have the wrapping.
+
+-----
+Title: [JDK-8347995] Race condition in jdk/java/net/httpclient/offline/FixedResponseHttpClient.java
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: The jdk/java/net/httpclient/offline/FixedResponseHttpClient.java test class makes unreasonable assumptions on BodyPublisher implementation. There's no guarantee that all buffers will be available until the subscriber is completed.
+
+-----
+Title: [JDK-8348107] test/jdk/java/net/httpclient/HttpsTunnelAuthTest.java fails intermittently
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: The test/jdk/java/net/httpclient/HttpsTunnelAuthTest.java has been observed failing at least once. The suspicion is that it may be due to the client URI using "localhost" instead of a literal IP.
+
+-----
+Title: [JDK-8348110] Update LCMS to 2.17
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: LittleCMS (aka LCMS) 2.17 released on February 9, 2025
+We should upgrade JDK 25 to use this.
+
+-----
+Title: [JDK-8348299] Update List/ItemEventTest/ItemEventTest.java
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: I found a few problems when I looked at the java/awt/List/ItemEventTest/ItemEventTest.java test to see what's going on in JDK-8204221.
+1. The java/awt/List/ItemEventTest/ItemEventTest.java test uses StringBuilder to store the string which keeps track of selecting and deselecting items in the list.
+The object of StringBuilder is used across two threads, which is not thread-safe.
+2. The java/awt/List/ItemEventTest/ItemEventTest.java test fails in CI on some hosts, JDK-8204221, therefore adding logging and screenshots could help identify the root cause.
+
+-----
+Title: [JDK-8348596] Update FreeType to 2.13.3
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: Freetype 2.13.3 was released on Aug 12, 2024
+
+-----
+Title: [JDK-8348597] Update HarfBuzz to 10.4.0
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: v 10.4.0 released on Feb 28, 2025
+
+-----
+Title: [JDK-8348598] Update Libpng to 1.6.47
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: Need to upgrade libpng from 1.6.43 to 1.6.47 (released on  Feb 18, 2025)
+
+-----
+Title: [JDK-8348600] Update PipeWire to 1.3.81
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: upgrade PipeWire to latest, 1.3.81 released on Jan 23, 2025
+
+-----
+Title: [JDK-8348865] JButton/bug4796987.java never runs because Windows XP is unavailable
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: The javax/swing/JButton/4796987/bug4796987.java test is designed to be run specifically on Windows XP:
+OSVersion.current().equals(OSVersion.WINDOWS_XP)
+Windows XP is obsolete for a long time. The test requires visual style that were introduced in Windows XP. At the time time, the test is relevant for any version of Windows after Windows XP. This is especially true now where visual styles are always enabled, the classic theme isn't supported since Windows 8.
+OS: windows
+
+-----
+Title: [JDK-8348936] [Accessibility,macOS,VoiceOver] VoiceOver doesn't announce untick on toggling the checkbox with "space" key on macOS
+Priority: P3
+Type: Bug
+Component: client-libs
+Description: Test Type: Accessibility
+Tested With: SwingSet2.jar
+Products Tested: jdk-8u451 b02, jdk-11.0.27 b01, jdk-17.0.9 b09, jdk-21.0.7 b03, 24.0.1 b02, JDK 25 b07
+Steps to reproduce:
+1. Run SwingSet2.jar
+2. Go to checkbox demo
+3. Turn on VoiceOver.
+4. Navigate the focus on checkbox using tab key.
+5. Press only "space" key: It will also tick or untick the checkbox, but VoiceOver announces the tick only, and it does NOT announce the untick.
+Expectation: VoiceOver should announce both tick and untick.
+Also tested the native macOS checkbox: on toggling the native checkbox using space key it announces both tick and untick, Java checkbox should also announce the same.
+Note: Only with jdk-17.0.9 b09 it announces both tick and untick, for rest all the releases it announces tick only.
+
+-----
+Title: [JDK-8349200] [JMH] time.format.ZonedDateTimeFormatterBenchmark fails
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: JMH test org.openjdk.bench.java.time.format.ZonedDateTimeFormatterBenchmark.parse fails "java.time.format.DateTimeParseException: Text '2015:03:10:12:13:ECT' could not be parsed at index 17".
+The reproduce command:
+./build/linux-x86_64-server-release/images/jdk/bin/java -Djmh.ignoreLock=true -Djava.library.path=$PWD/build/linux-x86_64-server-release/images/test/micro/native --add-opens=java.base/java.io=ALL-UNNAMED --enable-native-access=ALL-UNNAMED --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED --add-opens java.base/sun.security.provider=ALL-UNNAMED -jar $PWD/build/linux-x86_64-server-release/images/test/micro/benchmarks.jar -jvmArgsAppend "-Djava.library.path=$PWD/build/linux-x86_64-server-release/images/test/micro/native " -t 1 -f 1 -wi 2 org.openjdk.bench.java.time.format.ZonedDateTimeFormatterBenchmark.parse
+or:
+make test TEST="micro:org.openjdk.bench.java.time.format.ZonedDateTimeFormatterBenchmark.parse" MICRO="FORK=1;WARMUP_ITER=2" CONF=release
+The test log snippet:
+java.time.format.DateTimeParseException: Text '2015:03:10:12:13:ECT' could not be parsed at index 17
+at java.base/java.time.format.DateTimeFormatter.parseResolved0(DateTimeFormatter.java:2108)
+at java.base/java.time.format.DateTimeFormatter.parse(DateTimeFormatter.java:2010)
+at java.base/java.time.ZonedDateTime.parse(ZonedDateTime.java:600)
+at org.openjdk.bench.java.time.format.ZonedDateTimeFormatterBenchmark.setUp(ZonedDateTimeFormatterBenchmark.java:47)
+at org.openjdk.bench.java.time.format.jmh_generated.ZonedDateTimeFormatterBenchmark_parse_jmhTest._jmh_tryInit_f_zoneddatetimeformatterbenchmark0_0(ZonedDateTimeFormatterBenchmark_parse_jmhTest.java:340)
+at org.openjdk.bench.java.time.format.jmh_generated.ZonedDateTimeFormatterBenchmark_parse_jmhTest.parse_AverageTime(ZonedDateTimeFormatterBenchmark_parse_jmhTest.java:140)
+OS: generic
+
+-----
+Title: [JDK-8349348] Refactor ClassLoaderDeadlock.sh and Deadlock.sh to run fully in java
+Priority: P4
+Type: Sub-task
+Component: security-libs
+Description: test/java/security//Security/ClassLoaderDeadlock/ClassLoaderDeadlock.sh
+test/java/security//Security/ClassLoaderDeadlock/Deadlock.sh
+
+-----
+Title: [JDK-8349358] [JMH] Cannot access class jdk.internal.vm.ContinuationScope
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: The JMH test org.openjdk.bench.loom.obsolete.FreezeAndThaw.yieldAndContinue fails "java.lang.IllegalAccessError: superclass access check failed: class org.openjdk.bench.loom.obsolete.FreezeAndThaw$1 (in unnamed module @0x4459eb14) cannot access class jdk.internal.vm.ContinuationScope (in module java.base) because module java.base does not export jdk.internal.vm to unnamed module @0x4459eb14"
+Affected tests list:
+org.openjdk.bench.loom.obsolete.FreezeAndThaw.yieldAndContinue
+org.openjdk.bench.loom.obsolete.OneShot.noYield
+org.openjdk.bench.loom.obsolete.FreezeAndThaw.baseline
+org.openjdk.bench.loom.obsolete.OneShot.yieldAfterEachCall
+org.openjdk.bench.loom.obsolete.OneShot.yieldThenContinue
+org.openjdk.bench.loom.obsolete.OneShot.yieldBeforeAndAfterEachCall
+org.openjdk.bench.loom.obsolete.OneShot.yieldBeforeEachCall
+org.openjdk.bench.loom.obsolete.Oscillation.oscillate
+org.openjdk.bench.loom.obsolete.OneShot.yield
+The test log snippet:
+java.lang.IllegalAccessError: superclass access check failed: class org.openjdk.bench.loom.obsolete.FreezeAndThaw$1 (in unnamed module @0x4459eb14) cannot access class jdk.internal.vm.ContinuationScope (in module java.base) because module java.base does not export jdk.internal.vm to unnamed module @0x4459eb14
+at java.base/java.lang.ClassLoader.defineClass1(Native Method)
+at java.base/java.lang.ClassLoader.defineClass(ClassLoader.java:962)
+at java.base/java.security.SecureClassLoader.defineClass(SecureClassLoader.java:132)
+at java.base/jdk.internal.loader.BuiltinClassLoader.defineClass(BuiltinClassLoader.java:776)
+at java.base/jdk.internal.loader.BuiltinClassLoader.findClassOnClassPathOrNull(BuiltinClassLoader.java:691)
+at java.base/jdk.internal.loader.BuiltinClassLoader.loadClassOrNull(BuiltinClassLoader.java:620)
+at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:578)
+at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:490)
+at org.openjdk.bench.loom.obsolete.jmh_generated.FreezeAndThaw_yieldAndContinue_jmhTest._jmh_tryInit_f_freezeandthaw0_0(FreezeAndThaw_yieldAndContinue_jmhTest.java:357)
+at org.openjdk.bench.loom.obsolete.jmh_generated.FreezeAndThaw_yieldAndContinue_jmhTest.yieldAndContinue_AverageTime(FreezeAndThaw_yieldAndContinue_jmhTest.java:145)
+at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:527)
+at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:504)
+at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1095)
+at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:619)
+at java.base/java.lang.Thread.run(Thread.java:1447)
+OS: generic
+
+-----
+Title: [JDK-8349501] Relocate supporting classes in security/testlibrary to test/lib/jdk tree
+Priority: P4
+Type: Bug
+Component: security-libs
+Description: There are 5 support classes for tests that exist in open/test/jdk/java/security/testlibrary that should be relocated to open/test/lib/jdk/test/lib/security where many other support classes already exist.  The following classes will be moved:
+- CertificateBuilder
+- HumanInputStream
+- Providers
+- ProvidersSnapshot
+- SimpleOCSPServer
+In addition, where classes were part of the unnamed package they should be moved into the jdk.test.lib.security package to conform to the other classes there.  It is also useful to do for the Providers class to help distinguish it from the sun.security.jca.Providers class.
+
+-----
+Title: [JDK-8349637] Integer.numberOfLeadingZeros outputs incorrectly in certain cases
+Priority: P2
+Type: Bug
+Component: hotspot
+Description: ADDITIONAL SYSTEM INFORMATION :
+Windows 11 [Version 10.0.26100.2894]
+JDK 21.0.6, 23.0.2, 24-ea+35, 25-ea+8
+A DESCRIPTION OF THE PROBLEM :
+Use numberOfLeadingZeros inside a short loop.
+Use arrays for input, output, or both.
+Access arrays sequentially.
+Do not use branching statements such as if statements within the loop.
+A certain number of loops (hundreds of thousands of times?).
+Under these conditions, it may return a number that is 1 less at the boundary where the value changes.
+Could the Intrinsic of Integer.numberOfLeadingZeros be causing the problem?
+0x01FFFFFF: expected=7, actual=6
+0x03FFFFFE-0x03FFFFFF: expected=6, actual=5
+0x07FFFFFC-0x07FFFFFF: expected=5, actual=4
+0x0FFFFFF8-0x0FFFFFFF: expected=4, actual=3
+0x1FFFFFF0-0x1FFFFFFF: expected=3, actual=2
+0x3FFFFFE0-0x3FFFFFFF: expected=2, actual=1
+STEPS TO FOLLOW TO REPRODUCE THE PROBLEM :
+var out = new int[0x2000004];
+for (int i = 0; i  i);
+var input = new int[size];
+java.util.Arrays.setAll(input, i - -1  i);
+int actual = 0;
+for (int i = 0; i
+OS: generic
+
+-----
+Title: [JDK-8349751] AIX build failure after upgrade pipewire to 1.3.81
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Filed as separate issue to keep the upgrade PR clean of it.
+Fix is the same as in the src/java.desktop/unix/native/libpipewire/include/spa/param/audio/raw.h part of the JDK-8309703
+--- a/src/java.desktop/unix/native/libpipewire/include/spa/param/audio/raw.h
++++ b/src/java.desktop/unix/native/libpipewire/include/spa/param/audio/raw.h
+@@ -11,7 +11,15 @@ extern "C" {
+#include
+-#include
++#if !defined(__FreeBSD__) && !defined(__MidnightBSD__) && !defined(AIX)
++#include
++#endif
++
++#if defined(AIX)
++#include
++#define __BIG_ENDIAN      BIG_ENDIAN
++#define __BYTE_ORDER      BIG_ENDIAN
++#endif
+/**
+* \addtogroup spa_param
+
+-----
+Title: [JDK-8350260] Improve HTML instruction formatting in PassFailJFrame
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: When instructions are long, the formatting in PassFailJFrame looks off:
+1. When the instructions are displayed on the screen, the HTML is scrolled to the bottom, which isn't convenient;
+2. Numbers above 10 in the list are clipped on the left;
+3. No border around the HTML text.
+These problems were found while converting the instructions for test/jdk/javax/accessibility/TestJCheckBoxToggleAccessibility.java in code review [1][2] for JDK-8348936 and JDK-8345728.
+[1] https://github.com/openjdk/jdk/pull/23436
+[2] https://github.com/openjdk/jdk/pull/23436#discussion_r1953131477
+
+-----
+Title: [JDK-8350412] [21u] AArch64: Ambiguous frame layout leads to incorrect traces in JFR
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: It was previously pointed https://bugs.openjdk.org/browse/JDK-8323755?focusedId=14640270&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-14640270 that "When doing a runtime call from compiled code, JVM puts two words onto the stack: ... This breaks the invariant the stack walker relies on: the size of the compiled frame is constant".
+As a result JFR recordings from a simple program from JDK-8323755 do contain wrong samples, e.g. see duplicated timeLoop() entry
+jdk.ExecutionSample {
+startTime = 21:33:04.331 (2025-02-19)
+sampledThread = "timeLoop" (javaThreadId = 39)
+state = "STATE_RUNNABLE"
+stackTrace = [
+Test.time() line: 29
+Test.wrapper() line: 25
+Test.timeLoop() line: 15
+Test.timeLoop() line: 20
+]
+}
+Other diagnostic tools are affected too.
+Current code in 21u that is responsible for that is https://github.com/openjdk/jdk21u-dev/blob/990859cc32776e2d794de539190c9ccced1dfcd9/src/hotspot/cpu/aarch64/aarch64.ad#L3779
+It's the same for other update releases.
+In mainline jdk the issue has been fixed in JDK 24 as a part of JEP 491: Synchronize Virtual Threads without Pinning (JDK-8338383).
+The fix is in the aarch64.ad changes:
+https://github.com/openjdk/jdk/commit/78b80150e009745b8f28d36c3836f18ad0ca921f#diff-018aa61d1a7aafcf70a535fcd40a318a4bd6511fd40ac39ce4be90cc52216749R1651
+
+-----
+Title: [JDK-8351933] Inaccurate masking of TC subfield decrement in ForkJoinPool
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: When a decrement of TC subfield of ctl (Number of total workers [minus target parallelism in older versions], 16 bit at shift 32) is masked with UMASK (upper bits) mask, it may lead to corruption of RC subfield  (Number of total workers [minus target parallelism], 16 bit at shift 48).
+Current mainline code is like
+https://github.com/openjdk/jdk/blob/e43960a0170bf29b28ff4733e1c8c927947fb0bb/src/java.base/share/classes/java/util/concurrent/ForkJoinPool.java#L2080
+The FJP can stop executing tasks. E.g. JDK-8330017
+OS: generic
+
+-----
+Title: [JDK-8352076] [21u] Problem list tests that fail in 21 and would be fixed by 8309622
+Priority: P4
+Type: Sub-task
+Component: core-libs
+Description: We regularly but seldom see tests
+gc/shenandoah/TestAllocIntArrays.java#aggressive
+gc/shenandoah/TestAllocIntArrays.java#iu-aggressive
+gc/stress/gcold/TestGCOldWithShenandoah.java#iu-aggressive
+fail in SAP nighly tests.
+No occurances of the failures since we added 8309622 to our tests of 21.
+As we don't want to backport JDK-8309622 add them to the problem list.
+
+-----
+Title: [JDK-8352512] TestVectorZeroCount: counter not reset between iterations
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: The test uses counters with this initialization:
+private static int intCounter = Integer.MIN_VALUE;
+private static int longIterations = 100_000_000;
+It uses 2 iterations, but misses a counter reset between them.
+Timeouts were observed on PPC64.
+
+-----
+Title: [JDK-8352676] Opensource JMenu tests - series1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Few closed JMenu tests are to be opensourced
+
+-----
+Title: [JDK-8352680] Opensource few misc swing tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Few misc swing tests are to be opensourced
+
+-----
+Title: [JDK-8352684] Opensource JInternalFrame tests - series1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Few JInternalFrame tests are to be opensourced
+
+-----
+Title: [JDK-8352706] httpclient HeadTest does not run on HTTP2
+Priority: P4
+Type: Bug
+Component: core-libs
+Description: HeadTest verifies that the client does not expect any content in HEAD response and in HTTP 304 response, even if the Content-Length or the Transfer-Encoding headers are present. Due to a test bug, the test is currently only running on HTTP1. It should be run on HTTP2 as well.
+
+-----
+Title: [JDK-8352908] Open source several swing tests batch1
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open-sourcing and standardizing several tests (JSplitPane JApplet JToolBar)
+
+-----
+Title: [JDK-8353070] Clean up and open source couple AWT Graphics related tests (Part 1)
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Clean up and open source couple of AWT Graphics component related tests.
+
+-----
+Title: [JDK-8353138] Screen capture for test TaskbarPositionTest.java, failure case
+Priority: P4
+Type: Sub-task
+Component: client-libs
+Description: Since the failure is intermittent and root cause is unknown, screen capture of the application area will help for further investigation.
+OS: generic
+
+-----
+Title: [JDK-8353320] Open source more Swing text tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source some more Swing text tests
+
+-----
+Title: [JDK-8353446] Open source several AWT Menu tests - Batch 2
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source these AWT Menu tests:
+java/awt/Menu/OnFlyRepaintMenuTest/OnFlyRepaintMenuTest.java
+java/awt/Menu/DestroyMenuTest/DestroyMenuTest.java
+java/awt/Menu/MenuAddRemoveCrash/MenuAddRemoveCrash.java
+java/awt/Menu/MenuZOrderTest/MenuZOrderTest.java
+Remove the following test since it is platform specific (Solaris)
+java/awt/Menu/MenuTearOff/MenuTearOffCrashTest.java
+OS: generic
+
+-----
+Title: [JDK-8353475] Open source two Swing DefaultCaret tests
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source two Swing DefaultCaret tests
+
+-----
+Title: [JDK-8353685] Open some JComboBox bugs 4
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Updating and opening some tests
+
+-----
+Title: [JDK-8353709] Debug symbols bundle should contain full debug files when building --with-external-symbols-in-bundles=public
+Priority: P3
+Type: Bug
+Component: infrastructure
+Description: Currently, when building with --with-external-symbols-in-bundles=public, the debug symbols bundle contains the stripped pdb files. It should better have the full pdb files since stripped pdbs are in the runtime image already.
+OS: windows
+
+-----
+Title: [JDK-8353942] Open source Swing Tests - Set 5
+Priority: P4
+Type: Bug
+Component: client-libs
+Description: Open source Swing tests
+OS: generic
+
+-----
+Title: [JDK-8354255] [jittester] Remove TempDir debug output
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: JITTester's TempDir prints debug information about creation and deletion of a temporary folder, like this:
+DBG: Temp folder created: '/tmp/java_tests8412639693749199985'
+DBG: Temp folder deleted: '/tmp/java_tests8412639693749199985'
+jittester is a library, TempDir can be used in other tools. Debug outputs mess up logs, confuse output comparison tools, etc. And do not give any valuable information (as temp folder with its contents is deleted after VM shutdown).
+I suggest to remove those debug outputs.
+
+-----
+Title: [JDK-8354554] Open source several clipboard tests batch1
+Priority: P4
+Type: Bug
+Component: client-libs
+
+-----
+Title: [JDK-8355498] [AIX] Adapt code for C++ VLA rule
+Priority: P4
+Type: Bug
+Component: hotspot
+Description: The declaration of Variable length array is causing compilation issues for 17.1.3 compiler.
+1 error generated.
+gmake[3]: *** [lib/CompileJvm.gmk:170: /home/jenkins/openjdk-suchi/jdk/build/aix-ppc64-server-fastdebug/hotspot/variant-server/libjvm/objs/os_perf_aix.o] Error 1
+gmake[2]: *** [make/Main.gmk:245: hotspot-server-libs] Error 2
+gmake[2]: *** Waiting for unfinished jobs....
+ERROR: Build failed for target 'images' in configuration 'aix-ppc64-server-fastdebug' (exit code 2)
+Stopping javac server
+=== Output from failing command(s) repeated here ===
+* For target hotspot_variant-server_libjvm_objs_os_perf_aix.o:
+/home/jenkins/openjdk-suchi/jdk/src/hotspot/os/aix/os_perf_aix.cpp:79:12: error: variable length arrays in C++ are a Clang extension [-Werror,-Wvla-cxx-extension]
+79 |   char buf[BUF_LENGTH];
+|            ^~~~~~~~~~
+/home/jenkins/openjdk-suchi/jdk/src/hotspot/os/aix/os_perf_aix.cpp:79:12: note: read of non-const variable 'BUF_LENGTH' is not allowed in a constant expression
+/home/jenkins/openjdk-suchi/jdk/src/hotspot/os/aix/os_perf_aix.cpp:76:17: note: declared here
+76 |   static size_t BUF_LENGTH = 32 + sizeof(u_longlong_t);
+|                 ^
+
+-----
+Title: [JDK-8356096] ISO 4217 Amendment 179 Update
+Priority: P3
+Type: Bug
+Component: core-libs
+Description: 02 May 2025
+ISO 4217 AMENDMENT NUMBER 179
+”Effective from 12 May 2025, the following change will be made to “List one: Currency, fund and
+precious metal codes” as well as to “List Two: Fund Codes Registered with Agency”:
+Entity Currency Alphabetic
+code
+Numeric code Minor unit
+Arab Monetary Fund Arab Accounting Dinar XAD 396 2
+The Finance Department Arab Monetary Fund (AMF) is applying for new Fund currency code Arab
+Accounting Dinar with Alphabetic Code XAD and Numeric Code 396.
+The Arab Accounting Dinar is the official and reporting currency of the Arab Monetary Fund Reserve Asset.
+The decimal for the currency is set to 1.00, which corresponds to a Minor Unit of 2.
+OS: generic
+
+-----
+Title: [JDK-8357193] [VS 2022 17.14] Warning C5287 in debugInit.c: enum type mismatch during build
+Priority: P3
+Type: Bug
+Component: core-svc
+Description: * For target support_native_jdk.jdwp.agent_libjdwp_debugInit.obj:
+debugInit.c
+openjdk\jdk\src\jdk.jdwp.agent\share\native\libjdwp\debugInit.c(184): error C2220: the following warning is treated as an error
+\openjdk\jdk\src\jdk.jdwp.agent\share\native\libjdwp\debugInit.c(184): warning C5287: operands are different enum types '' and ''; use an explicit cast to silence this warning
+\openjdk\jdk\src\jdk.jdwp.agent\share\native\libjdwp\debugInit.c(184): note: to simplify migration, consider the temporary use of /Wv:18 flag with the version of the compiler with which you used to build without warnings
+\openjdk\jdk\src\jdk.jdwp.agent\share\native\libjdwp\debugInit.c(186): warning C5287: operands are different enum types '' and ''; use an explicit cast to silence this warning
+\openjdk\jdk\src\jdk.jdwp.agent\share\native\libjdwp\debugInit.c(186): note: to simplify migration, consider the temporary use of /Wv:18 flag with the version of the compiler with which you used to build without warnings
+\openjdk\jdk\src\jdk.jdwp.agent\share\native\libjdwp\debugInit.c(188): warning C5287: operands are different enum types '' and ''; use an explicit cast to silence this warning
+\openjdk\jdk\src\jdk.jdwp.agent\share\native\libjdwp\debugInit.c(188): note: to simplify migration, consider the temporary use of /Wv:18 flag with the version of the compiler with which you used to build without warnings
+... (rest of output omitted)
+OS: windows
