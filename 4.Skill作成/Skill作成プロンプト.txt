@@ -1,0 +1,172 @@
+skill-creatorを使って、以下のSkillを作ってください。
+
+## Overview
+
+JDK Issue Analyzerは、JDKのバージョン間でのIssue(バグ修正、機能追加、変更など)を分析し、アプリケーションへの影響を評価するためのスキルです。特にWindows 11環境でのJDKバージョンアップ時の影響調査に有用です。
+
+このスキルは以下を提供します:
+- 複数JDKバージョン間の統合Issue分析
+- 優先度、コンポーネント、OS別の詳細フィルタリング
+- インタラクティブなビジュアルレポートの生成
+- キーワード検索によるIssue発見
+
+## Core Workflow
+
+### 1. バージョン選択
+
+ユーザーとの対話を通じて、分析対象のJDKバージョンを決定します。
+複数バージョンを選択可能で、選択されたバージョンのすべてのIssueが統合分析されます。
+
+### 2. 分析とレポート生成
+
+選択されたバージョンのIssueデータを分析し、インタラクティブなHTMLレポートを生成します。
+レポート内容はユーザー要望によって変わります。十分にユーザーの目的を引き出すことが重要です。
+
+**レポートに含まれる情報の例:**
+- Issue総数、高優先度(P1-P2)Issue数
+- Windows関連Issue数、セキュリティ関連Issue数
+- 優先度別、コンポーネント別、タイプ別のグラフ
+- 全Issue一覧テーブル(フィルタリング・ソート可能)
+
+## Advanced Analysis
+
+### Issue検索機能
+
+`search_issues.py`スクリプトを使用して、特定条件のIssueを検索できます。
+
+#### Issue ID検索
+
+```bash
+cd scripts
+python3 search_issues.py --id JDK-8320192
+python3 search_issues.py --id 8320192  # プレフィックス省略可
+```
+
+#### キーワード検索
+
+タイトル、説明、コンポーネントからキーワードを検索:
+
+```bash
+python3 search_issues.py --search "Windows 11"
+python3 search_issues.py --search "platform" --verbose
+```
+
+特定フィールドのみを検索:
+
+```bash
+python3 search_issues.py --search "security" --search-fields title component
+```
+
+#### フィルタ検索
+
+優先度、タイプ、コンポーネント、OSで絞り込み:
+
+```bash
+# Priority=P2かつOS=windows
+python3 search_issues.py --priority P2 --os windows
+
+# Priority=P3のBug
+python3 search_issues.py --priority P3 --type Bug
+
+# hotspotコンポーネントのP4 Issue
+python3 search_issues.py --component hotspot --priority P4
+
+# 詳細表示
+python3 search_issues.py --priority P3 --type Bug --verbose
+```
+
+#### ファイル指定
+
+特定バージョンのみを検索:
+
+```bash
+python3 search_issues.py --priority P2 --os windows --file ../references/jdk_OpenJDK21_0_7_Released.txt
+```
+
+### 統計情報の取得
+
+Pythonから直接統計情報を取得することも可能:
+
+```python
+from jdk_issue_statistics import load_and_analyze
+
+# Issueファイルを読み込み
+stats = load_and_analyze('../references/jdk_OpenJDK21_0_6_Released.txt')
+
+# 統計情報を取得
+print(f"総Issue数: {len(stats.issues)}")
+print(f"優先度別: {stats.get_priority_stats()}")
+print(f"コンポーネント別: {stats.get_component_stats()}")
+print(f"タイプ別: {stats.get_type_stats()}")
+
+# フィルタリング
+p3_bugs = stats.filter_issues(priority='P3', type='Bug')
+windows_issues = stats.filter_issues(os='windows')
+```
+
+## Use Cases
+
+### Windows 11アプリケーションへの影響調査
+
+```bash
+# Windows関連のすべてのIssueを検索
+cd scripts
+python3 search_issues.py --os windows --verbose
+
+# Windows関連の高優先度Issue
+python3 search_issues.py --os windows --priority P2
+python3 search_issues.py --os windows --priority P3
+```
+
+### セキュリティ関連の変更確認
+
+```bash
+# security-libsコンポーネントの変更
+python3 search_issues.py --component security-libs
+
+# セキュリティキーワードで検索
+python3 search_issues.py --search "security" --verbose
+```
+
+### パフォーマンス改善の確認
+
+```bash
+# hotspotコンポーネントの変更(JVM関連)
+python3 search_issues.py --component hotspot
+
+# パフォーマンスキーワードで検索
+python3 search_issues.py --search "performance" --verbose
+```
+
+### 特定バグの詳細確認
+
+```bash
+# Issue IDで詳細情報を取得
+python3 search_issues.py --id JDK-8340387 --verbose
+```
+
+## Output Format
+
+生成されるHTMLレポートには、例えば以下の情報が含まれることが考えられます。
+実際の表示項目はユーザーの要望によって変わります。
+
+1. **サマリーダッシュボード**
+   - 総Issue数
+   - 高優先度(P1-P2)Issue数
+   - Windows関連Issue数
+   - セキュリティ関連Issue数
+
+2. **ビジュアルグラフ**
+   - 優先度別分布(棒グラフ)
+   - コンポーネント別分布(ドーナツグラフ)
+   - タイプ別分布(円グラフ)
+
+3. **Issue一覧テーブル**
+   - 優先度、タイプ、コンポーネント、タイトル、OS
+   - ソート・フィルタリング機能
+
+レポートは完全にスタンドアロンのHTMLファイルで、ブラウザで直接開くことができます。
+
+「バージョンごとにissue xmlをまとめたファイル」
+「search_issues.py」
+を添付するので、スキルに含めて下さい。
