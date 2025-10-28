@@ -1,4 +1,4 @@
-[1.INPUT作成/メモ.txt](1.INPUT作成/メモ.txt)  
+[1.INPUT作成/メモ.md](1.INPUT作成/メモ.md)  
 まずはINPUTの整理。何をINPUTとして使うかを決める。
 
 [2.サマリ生成/memo.txt](2.サマリ生成/memo.txt)  
