@@ -57,4 +57,5 @@ AI サービス上で以下の機能を提供します。
 この Skill を導入することで、JDK の問題解析を効率化し、レポート作成を標準化できます。
 
 作成例:  
-https://claude.ai/chat/ebe271e8-0867-4bb8-a18e-de36711630ac
+https://claude.ai/share/58ddc0cc-2b22-4de9-9475-0c11fdf48db3  
+https://claude.ai/share/9d4bf782-76c6-4ac5-bae9-7ccc42ba4c5e
