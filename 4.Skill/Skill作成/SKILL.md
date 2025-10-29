@@ -1,0 +1,183 @@
+---
+name: jdk-issue-analyzer
+description: Analyze JDK issues between versions to identify changes that impact existing application functionality. Use when users request analysis of JDK upgrade impacts, need to filter bug fixes and changes that affect their Windows 11 applications, or want a report on breaking changes between JDK versions.
+---
+
+# JDK Issue Analyzer
+
+JDKバージョン間のIssue(バグ修正、機能追加、変更など)を分析し、アプリケーションへの影響を評価するスキルです。特にWindows 11環境でのJDKバージョンアップ時の影響調査に有用です。
+
+## Core Workflow
+
+### 1. バージョン選択
+
+ユーザーとの対話を通じて、分析対象のJDKバージョンを決定します。以下のバージョンが利用可能です:
+
+- OpenJDK 21.0.6
+- OpenJDK 21.0.7
+- OpenJDK 21.0.8
+
+複数バージョンを選択可能で、選択されたバージョンのすべてのIssueが統合分析されます。
+
+ユーザーが具体的なバージョンを指定していない場合は、以下のような質問で要望を明確化してください:
+
+- 「どのJDKバージョン間での変更を分析しますか?」
+- 「現在使用しているJDKバージョンと、アップグレード先のバージョンを教えてください」
+- 「すべての利用可能なバージョン(21.0.6, 21.0.7, 21.0.8)を分析しますか?」
+
+### 2. 目的の確認
+
+レポート内容を適切にカスタマイズするため、ユーザーの分析目的を確認します:
+
+- Windows 11環境への影響確認
+- セキュリティ関連の変更確認
+- パフォーマンス改善の確認
+- 特定コンポーネントへの影響確認
+- 高優先度Issueの影響評価
+
+### 3. レポート生成
+
+`scripts/generate_report.py`を使用してHTMLレポートを生成します:
+
+```bash
+cd scripts
+python3 generate_report.py 21.0.6 21.0.7 21.0.8
+```
+
+レポートには以下の情報が含まれます:
+
+- **サマリーダッシュボード**: 総Issue数、高優先度Issue数、Windows関連Issue数、セキュリティ関連Issue数
+- **ビジュアルグラフ**: 優先度別、コンポーネント別、タイプ別、OS別の分布
+- **インタラクティブなIssue一覧テーブル**: ソート・フィルタリング機能付き
+
+生成されたレポートは`/mnt/user-data/outputs/`にコピーして、ユーザーに提供してください。
+
+### 4. フィードバックと追加分析
+
+レポート生成後、ユーザーに以下のような追加分析を提案します(状況に応じて3つ程度):
+
+1. 「特定のコンポーネント(例: hotspot、security-libs、core-libs)に絞った詳細分析を追加しますか?」
+2. 「Windows 11関連のIssueのみの詳細レポートを作成しますか?」
+3. 「高優先度(P1-P2)Issueの影響度分析を追加しますか?」
+4. 「セキュリティ関連Issueの詳細分析を追加しますか?」
+5. 「特定キーワード(例: performance、deprecation、API)での検索分析を追加しますか?」
+6. 「バージョン間の比較グラフを追加しますか?」
+
+ユーザーが追加分析を希望する場合は、`search_issues.py`を使用して詳細データを取得し、レポートを更新します。
+
+## Issue検索機能
+
+`scripts/search_issues.py`を使用して、特定条件のIssueを検索できます。
+
+### Issue ID検索
+
+```bash
+cd scripts
+python3 search_issues.py --id JDK-8320192
+python3 search_issues.py --id 8320192  # プレフィックス省略可
+```
+
+### キーワード検索
+
+タイトル、説明、コンポーネントからキーワードを検索:
+
+```bash
+python3 search_issues.py --search "Windows 11"
+python3 search_issues.py --search "platform" --verbose
+```
+
+特定フィールドのみを検索:
+
+```bash
+python3 search_issues.py --search "security" --search-fields title component
+```
+
+### フィルタ検索
+
+```bash
+# Priority=P2かつOS=windows
+python3 search_issues.py --priority P2 --os windows
+
+# Priority=P3のBug
+python3 search_issues.py --priority P3 --type Bug
+
+# hotspotコンポーネントのP4 Issue
+python3 search_issues.py --component hotspot --priority P4
+
+# 詳細表示
+python3 search_issues.py --priority P3 --type Bug --verbose
+```
+
+### ファイル指定
+
+特定バージョンのみを検索:
+
+```bash
+python3 search_issues.py --priority P2 --os windows --file ../references/jdk_OpenJDK21_0_7_Released.txt
+```
+
+## Use Cases
+
+### Windows 11アプリケーションへの影響調査
+
+```bash
+cd scripts
+# Windows関連のすべてのIssueを検索
+python3 search_issues.py --os windows --verbose
+
+# Windows関連の高優先度Issue
+python3 search_issues.py --os windows --priority P2
+```
+
+### セキュリティ関連の変更確認
+
+```bash
+# security-libsコンポーネントの変更
+python3 search_issues.py --component security-libs
+
+# セキュリティキーワードで検索
+python3 search_issues.py --search "security" --verbose
+```
+
+### パフォーマンス改善の確認
+
+```bash
+# hotspotコンポーネントの変更(JVM関連)
+python3 search_issues.py --component hotspot
+
+# パフォーマンスキーワードで検索
+python3 search_issues.py --search "performance" --verbose
+```
+
+## プログラマティックな使用
+
+Pythonから直接統計情報を取得することも可能:
+
+```python
+from jdk_issue_statistics import load_and_analyze, load_multiple_files
+
+# 単一ファイルを読み込み
+stats = load_and_analyze('../references/jdk_OpenJDK21_0_6_Released.txt')
+
+# 複数ファイルを統合
+stats = load_multiple_files([
+    '../references/jdk_OpenJDK21_0_6_Released.txt',
+    '../references/jdk_OpenJDK21_0_7_Released.txt'
+])
+
+# 統計情報を取得
+print(f"総Issue数: {len(stats.issues)}")
+print(f"優先度別: {stats.get_priority_stats()}")
+print(f"コンポーネント別: {stats.get_component_stats()}")
+
+# フィルタリング
+p3_bugs = stats.filter_issues(priority='P3', type='Bug')
+windows_issues = stats.filter_issues(os='windows')
+```
+
+## 重要な注意事項
+
+- レポート生成前に、必ずユーザーの分析目的を確認してください
+- 生成したレポートは必ず`/mnt/user-data/outputs/`にコピーしてください
+- 追加分析の提案は、生成したレポートの内容とユーザーの目的に応じて選択してください
+- ユーザーが特定のIssueについて詳しく知りたい場合は、`search_issues.py --id`を使用してください
