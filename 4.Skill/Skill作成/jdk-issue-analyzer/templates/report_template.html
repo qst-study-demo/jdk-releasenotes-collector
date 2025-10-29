@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .versions {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 10px;
+            font-size: 1.1em;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 40px;
+            background: #f8f9fa;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-title {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card-value {
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .card.priority { color: #dc3545; }
+        .card.priority .card-value { color: #dc3545; }
+        .card.windows { color: #0078d4; }
+        .card.windows .card-value { color: #0078d4; }
+        .card.security { color: #fd7e14; }
+        .card.security .card-value { color: #fd7e14; }
+
+        .charts-section {
+            padding: 40px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .table-section {
+            padding: 40px;
+            background: #f8f9fa;
+        }
+
+        .table-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .table-controls input,
+        .table-controls select {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .table-controls input:focus,
+        .table-controls select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .table-controls input {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        th:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        th::after {
+            content: ' ↕';
+            opacity: 0.5;
+            font-size: 0.8em;
+        }
+
+        th.sort-asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+
+        th.sort-desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .priority-P1 { background: #dc3545; color: white; }
+        .priority-P2 { background: #fd7e14; color: white; }
+        .priority-P3 { background: #ffc107; color: black; }
+        .priority-P4 { background: #28a745; color: white; }
+        .priority-P5 { background: #6c757d; color: white; }
+
+        .type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 {{ title }}</h1>
+            <p>{{ summary }}</p>
+            <div class="versions">
+                <strong>分析対象バージョン:</strong> {{ versions_text }}
+            </div>
+        </header>
+
+        <div class="summary-cards">
+            <div class="card">
+                <div class="card-title">総Issue数</div>
+                <div class="card-value">{{ total_issues }}</div>
+            </div>
+            <div class="card priority">
+                <div class="card-title">高優先度 (P1-P2)</div>
+                <div class="card-value">{{ high_priority_count }}</div>
+            </div>
+            <div class="card windows">
+                <div class="card-title">Windows関連</div>
+                <div class="card-value">{{ windows_count }}</div>
+            </div>
+            <div class="card security">
+                <div class="card-title">セキュリティ関連</div>
+                <div class="card-value">{{ security_count }}</div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <h2 style="font-size: 2em; margin-bottom: 10px;">📈 ビジュアル分析</h2>
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">優先度別分布</div>
+                    <canvas id="priorityChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">コンポーネント別分布 (Top 10)</div>
+                    <canvas id="componentChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">タイプ別分布</div>
+                    <canvas id="typeChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">OS別分布</div>
+                    <canvas id="osChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-section">
+            <h2 style="font-size: 2em; margin-bottom: 20px;">📋 Issue一覧</h2>
+            <div class="table-controls">
+                <input type="text" id="searchInput" placeholder="🔍 Issueを検索...">
+                <select id="priorityFilter">
+                    <option value="">すべての優先度</option>
+                    <option value="P1">P1</option>
+                    <option value="P2">P2</option>
+                    <option value="P3">P3</option>
+                    <option value="P4">P4</option>
+                    <option value="P5">P5</option>
+                </select>
+                <select id="typeFilter">
+                    <option value="">すべてのタイプ</option>
+                    {{ type_options }}
+                </select>
+                <select id="componentFilter">
+                    <option value="">すべてのコンポーネント</option>
+                    {{ component_options }}
+                </select>
+            </div>
+            <table id="issuesTable">
+                <thead>
+                    <tr>
+                        <th data-sort="id">Issue ID</th>
+                        <th data-sort="priority">優先度</th>
+                        <th data-sort="type">タイプ</th>
+                        <th data-sort="component">コンポーネント</th>
+                        <th data-sort="title">タイトル</th>
+                        <th data-sort="os">OS</th>
+                    </tr>
+                </thead>
+                <tbody id="issuesTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <footer>
+            <p>Generated by JDK Issue Analyzer | {{ total_issues }} issues analyzed</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // データ
+            const issuesData = {{ issues_data | safe }};
+            const priorityStats = {{ priority_stats | safe }};
+            const componentStats = {{ component_stats | safe }};
+            const typeStats = {{ type_stats | safe }};
+            const osStats = {{ os_stats | safe }};
+
+            // グラフの色設定
+            const chartColors = [
+                '#667eea', '#764ba2', '#f093fb', '#4facfe',
+                '#43e97b', '#fa709a', '#fee140', '#30cfd0',
+                '#a8edea', '#fed6e3', '#c471f5', '#fa8231'
+            ];
+
+            // 優先度チャート
+            new Chart(document.getElementById('priorityChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(priorityStats),
+                datasets: [{
+                    label: 'Issue数',
+                    data: Object.values(priorityStats),
+                    backgroundColor: chartColors[0],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // コンポーネントチャート (Top 10)
+        const topComponents = Object.entries(componentStats)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+
+        new Chart(document.getElementById('componentChart'), {
+            type: 'doughnut',
+            data: {
+                labels: topComponents.map(c => c[0]),
+                datasets: [{
+                    data: topComponents.map(c => c[1]),
+                    backgroundColor: chartColors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+
+        // タイプチャート
+        new Chart(document.getElementById('typeChart'), {
+            type: 'pie',
+            data: {
+                labels: Object.keys(typeStats),
+                datasets: [{
+                    data: Object.values(typeStats),
+                    backgroundColor: chartColors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+
+        // OSチャート
+        new Chart(document.getElementById('osChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(osStats),
+                datasets: [{
+                    label: 'Issue数',
+                    data: Object.values(osStats),
+                    backgroundColor: chartColors[1],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { display: false } },
+                indexAxis: 'y'
+            }
+        });
+
+        // テーブル機能
+        let currentSort = { column: 'priority', direction: 'asc' };
+        let filteredData = [...issuesData];
+
+        function renderTable() {
+            const tbody = document.getElementById('issuesTableBody');
+            tbody.innerHTML = '';
+
+            filteredData.forEach(issue => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${issue.id}</td>
+                    <td><span class="priority-badge priority-${issue.priority}">${issue.priority}</span></td>
+                    <td><span class="type-badge">${issue.type}</span></td>
+                    <td>${issue.component}</td>
+                    <td>${issue.title}</td>
+                    <td>${issue.os || '-'}</td>
+                `;
+            });
+        }
+
+        function sortData(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+
+            filteredData.sort((a, b) => {
+                let aVal = a[column] || '';
+                let bVal = b[column] || '';
+
+                if (column === 'priority') {
+                    const priorityOrder = { 'P1': 1, 'P2': 2, 'P3': 3, 'P4': 4, 'P5': 5 };
+                    aVal = priorityOrder[aVal] || 99;
+                    bVal = priorityOrder[bVal] || 99;
+                }
+
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // ソート状態を表示
+            document.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+            document.querySelector(`th[data-sort="${column}"]`)
+                .classList.add(`sort-${currentSort.direction}`);
+
+            renderTable();
+        }
+
+        function filterData() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const priorityFilter = document.getElementById('priorityFilter').value;
+            const typeFilter = document.getElementById('typeFilter').value;
+            const componentFilter = document.getElementById('componentFilter').value;
+
+            filteredData = issuesData.filter(issue => {
+                const matchesSearch = !searchTerm ||
+                    issue.title.toLowerCase().includes(searchTerm) ||
+                    issue.id.toLowerCase().includes(searchTerm) ||
+                    issue.description.toLowerCase().includes(searchTerm);
+                const matchesPriority = !priorityFilter || issue.priority === priorityFilter;
+                const matchesType = !typeFilter || issue.type === typeFilter;
+                const matchesComponent = !componentFilter || issue.component === componentFilter;
+
+                return matchesSearch && matchesPriority && matchesType && matchesComponent;
+            });
+
+            renderTable();
+        }
+
+            // イベントリスナー
+            document.querySelectorAll('th[data-sort]').forEach(th => {
+                th.addEventListener('click', () => sortData(th.dataset.sort));
+            });
+
+            document.getElementById('searchInput').addEventListener('input', filterData);
+            document.getElementById('priorityFilter').addEventListener('change', filterData);
+            document.getElementById('typeFilter').addEventListener('change', filterData);
+            document.getElementById('componentFilter').addEventListener('change', filterData);
+
+            // 初期表示
+            renderTable();
+        });
+    </script>
+</body>
+</html>
