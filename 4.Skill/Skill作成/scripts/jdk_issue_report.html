@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JDK Issue Analysis Report - 21.0.6</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .versions {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 10px;
+            font-size: 1.1em;
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 40px;
+            background: #f8f9fa;
+        }
+        
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .card-title {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .card-value {
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .card.priority { color: #dc3545; }
+        .card.priority .card-value { color: #dc3545; }
+        .card.windows { color: #0078d4; }
+        .card.windows .card-value { color: #0078d4; }
+        .card.security { color: #fd7e14; }
+        .card.security .card-value { color: #fd7e14; }
+        
+        .charts-section {
+            padding: 40px;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .table-section {
+            padding: 40px;
+            background: #f8f9fa;
+        }
+        
+        .table-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .table-controls input,
+        .table-controls select {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+        
+        .table-controls input:focus,
+        .table-controls select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .table-controls input {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        
+        th:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        th::after {
+            content: ' ↕';
+            opacity: 0.5;
+            font-size: 0.8em;
+        }
+        
+        th.sort-asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+        
+        th.sort-desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+        
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        
+        .priority-P1 { background: #dc3545; color: white; }
+        .priority-P2 { background: #fd7e14; color: white; }
+        .priority-P3 { background: #ffc107; color: black; }
+        .priority-P4 { background: #28a745; color: white; }
+        .priority-P5 { background: #6c757d; color: white; }
+        
+        .type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            background: #e9ecef;
+            color: #495057;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 JDK Issue Analysis Report - 21.0.6</h1>
+            <p>JDKバージョン間のIssue分析レポート</p>
+            <div class="versions">
+                <strong>分析対象バージョン:</strong> 21.0.6
+            </div>
+        </header>
+        
+        <div class="summary-cards">
+            <div class="card">
+                <div class="card-title">総Issue数</div>
+                <div class="card-value">77</div>
+            </div>
+            <div class="card priority">
+                <div class="card-title">高優先度 (P1-P2)</div>
+                <div class="card-value">4</div>
+            </div>
+            <div class="card windows">
+                <div class="card-title">Windows関連</div>
+                <div class="card-value">3</div>
+            </div>
+            <div class="card security">
+                <div class="card-title">セキュリティ関連</div>
+                <div class="card-value">16</div>
+            </div>
+        </div>
+        
+        <div class="charts-section">
+            <h2 style="font-size: 2em; margin-bottom: 10px;">📈 ビジュアル分析</h2>
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">優先度別分布</div>
+                    <canvas id="priorityChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">コンポーネント別分布 (Top 10)</div>
+                    <canvas id="componentChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">タイプ別分布</div>
+                    <canvas id="typeChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">OS別分布</div>
+                    <canvas id="osChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-section">
+            <h2 style="font-size: 2em; margin-bottom: 20px;">📋 Issue一覧</h2>
+            <div class="table-controls">
+                <input type="text" id="searchInput" placeholder="🔍 Issueを検索...">
+                <select id="priorityFilter">
+                    <option value="">すべての優先度</option>
+                    <option value="P1">P1</option>
+                    <option value="P2">P2</option>
+                    <option value="P3">P3</option>
+                    <option value="P4">P4</option>
+                    <option value="P5">P5</option>
+                </select>
+                <select id="typeFilter">
+                    <option value="">すべてのタイプ</option>
+                    <option value="Bug">Bug</option>
+<option value="Sub-task">Sub-task</option>
+                </select>
+                <select id="componentFilter">
+                    <option value="">すべてのコンポーネント</option>
+                    <option value="hotspot">hotspot</option>
+<option value="security-libs">security-libs</option>
+<option value="client-libs">client-libs</option>
+<option value="core-libs">core-libs</option>
+<option value="infrastructure">infrastructure</option>
+<option value="tools">tools</option>
+<option value="core-svc">core-svc</option>
+                </select>
+            </div>
+            <table id="issuesTable">
+                <thead>
+                    <tr>
+                        <th data-sort="id">Issue ID</th>
+                        <th data-sort="priority">優先度</th>
+                        <th data-sort="type">タイプ</th>
+                        <th data-sort="component">コンポーネント</th>
+                        <th data-sort="title">タイトル</th>
+                        <th data-sort="os">OS</th>
+                    </tr>
+                </thead>
+                <tbody id="issuesTableBody">
+                </tbody>
+            </table>
+        </div>
+        
+        <footer>
+            <p>Generated by JDK Issue Analyzer | 77 issues analyzed</p>
+        </footer>
+    </div>
+    
+    <script>
+        // データ
+        const issuesData = [{"id": "JDK-8296787", "title": "Unify debug printing format of X.509 cert serial numbers", "priority": "P4", "type": "Bug", "component": "security-libs", "os": "generic", "description": "The JDK debug libraries print X.509 certificate serial numbers in 3 different formats. We should unify on one format.\ne.g.\n==============\ncertpath: X509CertSelector.match(SN: 83be056904246b1a1756ac959..."}, {"id": "JDK-8308429", "title": "jvmti/StopThread/stopthrd007 failed with \"NoClassDefFoundError: Could not initialize class jdk.internal.misc.VirtualThreads\"", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "The following test failed in the JDK21 CI:\nvmTestbase/nsk/jvmti/StopThread/stopthrd007/TestDescription.java\nHere's a snippet from the log file:\n#section:main\n----------messages:(8/397)----------\ncomma..."}, {"id": "JDK-8316428", "title": "G1: Nmethod count statistics only count last code root set iterated", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "G1 Nmethod count statistics is wrong, only counting the count of the last code root set iterated."}, {"id": "JDK-8318105", "title": "[jmh] the test java.security.HSS failed with 2 active threads", "priority": "P4", "type": "Bug", "component": "security-libs", "os": "generic", "description": "The test micro/org/openjdk/bench/java/security/HSS.java failed with log:\njava.lang.RuntimeException\nat org.openjdk.bench.java.security.HSS.verify(HSS.java:105)\nfor runs with 2+ threads."}, {"id": "JDK-8319960", "title": "RISC-V: compiler/intrinsics/TestInteger/LongUnsignedDivMod.java failed with \"counts: Graph contains wrong number of nodes\"", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "After JDK-8318224， compiler/intrinsics/TestInteger/LongUnsignedDivMod.java failed with \"counts: Graph contains wrong number of nodes\""}, {"id": "JDK-8319973", "title": "AArch64: Save and restore FPCR in the call stub", "priority": "P3", "type": "Bug", "component": "hotspot", "os": "generic", "description": "On AArch64 we don't save and restore the default floating-point control state when we enter and leave Java code. We really should, because if we're called via the JNI invocation interface with a weird..."}, {"id": "JDK-8320192", "title": "SHAKE256 does not work correctly if n >= 137", "priority": "P3", "type": "Bug", "component": "security-libs", "os": "", "description": "The internal SHAKE256 class fails the NIST CAVP test when n reaches 137. The following program succeeds in the 1st check but fails the 2nd one.\nimport sun.security.provider.SHAKE256;\nimport java.util...."}, {"id": "JDK-8320575", "title": "generic type information lost on mandated parameters of record's compact constructors", "priority": "P3", "type": "Bug", "component": "core-libs", "os": "generic", "description": "ADDITIONAL SYSTEM INFORMATION :\nTested on MacBook Pro M2, Ventura 13.4\nJava 21.0.1\nA DESCRIPTION OF THE PROBLEM :\nWhen, via reflection, trying to determine the generic type of an argument of the defau..."}, {"id": "JDK-8320673", "title": "PageFormat/CustomPaper.java has no Pass/Fail buttons; multiple instructions", "priority": "P4", "type": "Bug", "component": "client-libs", "os": "", "description": "The test/jdk/java/awt/print/PageFormat/CustomPaper.java test displays instructions but there's no Pass/Fail buttons. As soon as you close the Print dialog (after selecting the file if printing to PDF)..."}, {"id": "JDK-8320892", "title": "AArch64: Restore FPU control state after JNI", "priority": "P3", "type": "Bug", "component": "hotspot", "os": "generic", "description": "Some buggy libraries corrupt the floating-point control register. Provide something similar to the x86 RestoreMXCSROnJNICalls."}, {"id": "JDK-8321299", "title": "runtime/logging/ClassLoadUnloadTest.java doesn't reliably trigger class unloading", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "runtime/logging/ClassLoadUnloadTest.java doesn't trigger unloading of test.Empty class.\nThe test accidentally pass due to an unrelated class being unloaded:\n$ java ... -Xlog:class+unload=info ... Clas..."}, {"id": "JDK-8321543", "title": "Update NSS to version 3.96", "priority": "P3", "type": "Bug", "component": "security-libs", "os": "", "description": "This will be released on 12/14/2023\nhttps://wiki.mozilla.org/NSS:Release_Versions"}, {"id": "JDK-8322809", "title": "SystemModulesMap::classNames and moduleNames arrays do not match the order", "priority": "P3", "type": "Bug", "component": "tools", "os": "generic", "description": "A DESCRIPTION OF THE PROBLEM :\nI have a java-project that is build as module. The name of the module starts with \"com\" (e.g. com.project). This module has a dependency to jdk.httpserver. When I run th..."}, {"id": "JDK-8323562", "title": "SaslInputStream.read() may return wrong value", "priority": "P4", "type": "Bug", "component": "core-libs", "os": "generic", "description": "The \"com.sun.jndi.ldap.sasl.SaslInputStream\" class has this code:\npublic int read() throws IOException {\nbyte[] inBuf = new byte[1];\nint count = read(inBuf, 0, 1);\nif (count  0) {\nreturn inBuf[0];\n} e..."}, {"id": "JDK-8323688", "title": "C2: Fix UB of jlong overflow in PhaseIdealLoop::is_counted_loop()", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "The computation of `final_correction` in `is_counted_loop()` could overflow which is UB. I don't think that any compiler would produce a wrong result. But we should still fix this UB."}, {"id": "JDK-8324841", "title": "PKCS11 tests still skip execution", "priority": "P4", "type": "Bug", "component": "security-libs", "os": "", "description": "Since JDK-8313206, the PKCS11 tests throw SkipException if they can't find NSS library. This is fine in the default case where no NSS library was provided. However, in cases where we expect the librar..."}, {"id": "JDK-8324861", "title": "Exceptions::wrap_dynamic_exception() doesn't have ResourceMark", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "Exceptions::wrap_dynamic_exception() don't have ResourceMark in the logging path\ndiff:\ndiff --git a/src/hotspot/share/utilities/exceptions.cpp b/src/hotspot/share/utilities/exceptions.cpp\nindex bca683..."}, {"id": "JDK-8325203", "title": "System.exit(0) kills the launched 3rd party application", "priority": "P3", "type": "Bug", "component": "tools", "os": "windows_10", "description": "ADDITIONAL SYSTEM INFORMATION :\nWindows 11,\nopenjdk version \"21.0.2\" 2024-01-16 LTS\nOpenJDK Runtime Environment Temurin-21.0.2+13 (build 21.0.2+13-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.2+13 (buil..."}, {"id": "JDK-8325851", "title": "Hide PassFailJFrame.Builder constructor", "priority": "P5", "type": "Bug", "component": "client-libs", "os": "", "description": "The PassFailJFrame.Builder class provides a way to configure the parameters of PassFailJFrame in a set of chained method calls.\nThe Builder class is public and has public constructor. At the same time..."}, {"id": "JDK-8327924", "title": "Simplify TrayIconScalingTest.java", "priority": "P5", "type": "Bug", "component": "client-libs", "os": "", "description": "The test/jdk/java/awt/TrayIcon/TrayIconScalingTest.java test uses PassFailJFrame and combines builder and positioning of the windows. Previously, calling PassFailJFrame.positionTestWindow was required..."}, {"id": "JDK-8328021", "title": "Convert applet test java/awt/List/SetFontTest/SetFontTest.html to main program", "priority": "P4", "type": "Bug", "component": "client-libs", "os": "", "description": "java/awt/List/SetFontTest/SetFontTest.html  is a manual applet-based test.\nIt can be converted to a main program test using PassFailJFrame"}, {"id": "JDK-8328379", "title": "Convert URLDragTest.html applet test to main", "priority": "P4", "type": "Bug", "component": "client-libs", "os": "generic", "description": "Convert awt/dnd/URLDragTest.html applet test to main using PassFailJFrame."}, {"id": "JDK-8328665", "title": "serviceability/jvmti/vthread/PopFrameTest failed with a timeout", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "The test serviceability/jvmti/vthread/PopFrameTest/PopFrameTest.java#no-vmcontinuations resulted in test timeout after 480 secs.\nThis bug is a copy of the JDK-8327781 as it was created as a confidenti..."}, {"id": "JDK-8330278", "title": "Have SSLSocketTemplate.doClientSide use loopback address", "priority": "P4", "type": "Bug", "component": "security-libs", "os": "", "description": "SSLSocketTemplate currently defaults to using the localhost address. Using the loopback address by default may prove more reliable for some test configurations.\ne.g. see https://github.com/openjdk/jdk..."}, {"id": "JDK-8331393", "title": "AArch64: u32 _partial_subtype_ctr loaded/stored as 64", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "We should store/load as proper sized.\nhttps://github.com/openjdk/jdk/blob/60b61e588c1252b4b1fbc64d0f818a85670f7146/src/hotspot/cpu/aarch64/macroAssembler_aarch64.cpp#L1565"}, {"id": "JDK-8332724", "title": "x86 MacroAssembler may over-align code", "priority": "P5", "type": "Bug", "component": "hotspot", "os": "", "description": "The functions align32 and align64 are supposed to align the code to 32 or 64 bytes, by adding the minimal number of NOP bytes that is required to align the code.\nThe target is explicitly cast to unsig..."}, {"id": "JDK-8333235", "title": "vmTestbase/nsk/jdb/kill/kill001/kill001.java fails with C1", "priority": "P4", "type": "Bug", "component": "core-svc", "os": "", "description": "Test\nvmTestbase/nsk/jdb/kill/kill001/kill001.java\nfails with\n-Xcomp -ea -esa -XX:CompileThreshold=100 -XX:+UnlockExperimentalVMOptions -XX:TieredStopAtLevel=3 (1,2,3)\nSee log in comments."}, {"id": "JDK-8333754", "title": "Add a Test against ECDSA and ECDH NIST Test vector", "priority": "P3", "type": "Bug", "component": "security-libs", "os": "", "description": ""}, {"id": "JDK-8333824", "title": "Unused ClassValue in VarHandles", "priority": "P5", "type": "Bug", "component": "core-libs", "os": "", "description": "VarHandles defines the static ClassValue ADDRESS_FACTORIES, which appears to be completely unused. Likely a leftover."}, {"id": "JDK-8334560", "title": "[PPC64]: postalloc_expand_java_dynamic_call_sched does not copy all fields", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "generic", "description": "postalloc_expand_java_dynamic_call_sched should copy also MachSafePointNode::_has_ea_local_in_scope\nIf the information is not propagated then it can happen that C2 optimizations based on escape analys..."}, {"id": "JDK-8335142", "title": "compiler/c1/TestTraceLinearScanLevel.java occasionally times out with -Xcomp", "priority": "P5", "type": "Bug", "component": "hotspot", "os": "", "description": "compiler/c1/TestTraceLinearScanLevel is occasionally timing out on macosx-x64 when running with -Xcomp.\nThe test's purpose is to sanity check the TraceLinearScanLevel flag with a hello world like test..."}, {"id": "JDK-8335172", "title": "Add manual steps to run security/auth/callback/TextCallbackHandler/Password.java test", "priority": "P4", "type": "Bug", "component": "security-libs", "os": "", "description": "The test com/sun/security/auth/callback/TextCallbackHandler/Password.java is in the problem list, but it is not actually failing. It requires some manual user input and the issue is that there are no ..."}, {"id": "JDK-8335267", "title": "[XWayland] move screencast tokens from .awt to .java folder", "priority": "P4", "type": "Bug", "component": "client-libs", "os": "", "description": "Currently the screencast tokens are stored in\n.awt/robot/screencast-tokens.properties\nwhen they should be in the .java folder\ne.g. in  .java/robot/screencast-tokens.properties"}, {"id": "JDK-8335344", "title": "test/jdk/sun/security/tools/keytool/NssTest.java fails to compile", "priority": "P3", "type": "Bug", "component": "security-libs", "os": "", "description": "There is a compilation issue in the test test/jdk/sun/security/tools/keytool/NssTest.java because the HumanInputStream class was moved from KeyToolTest to a library class.\nopen/test/jdk/sun/security/t..."}, {"id": "JDK-8335530", "title": "Java file extension missing in AuthenticatorTest", "priority": "P4", "type": "Bug", "component": "core-libs", "os": "", "description": "The `.java` file extension is missing for https://github.com/openjdk/jdk/blob/master/test/jdk/com/sun/net/httpserver/AuthenticatorTest\nThe test also fails due to principal.getName() needs to be replac..."}, {"id": "JDK-8336854", "title": "CAInterop.java#actalisauthenticationrootca conflicted with /manual and /timeout", "priority": "P4", "type": "Bug", "component": "security-libs", "os": "", "description": "This manual test is failing with\ntest result: Error. Parse Exception: `/manual' disables use of `/timeout'\nIt is failing as timeout cannot work with manual.\nThis. change is  done in this bug JDK-83344..."}, {"id": "JDK-8336911", "title": "ZGC: Division by zero in heuristics after JDK-8332717", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "when running with ubsan enabled binaries, the following issue is reported,\ne.g. in test\ncompiler/uncommontrap/TestDeoptOOM_ZGenerational.jtr\nalso in gc/z/TestSmallHeap.jtr\njdk/src/hotspot/share/gc/z/z..."}, {"id": "JDK-8337066", "title": "Repeated call of StringBuffer.reverse with double byte string returns wrong result", "priority": "P2", "type": "Bug", "component": "hotspot", "os": "", "description": "When calling StringBuffer/StringBuilder.reverse with 2byte string repeatedly, the API returns wrong result."}, {"id": "JDK-8337810", "title": "ProblemList BasicDirectoryModel/LoaderThreadCount.java on Windows", "priority": "P4", "type": "Sub-task", "component": "client-libs", "os": "", "description": "The test BasicDirectoryModel/LoaderThreadCount.java fails rather often in our CI, exclude it for now."}, {"id": "JDK-8338109", "title": "java/awt/Mouse/EnterExitEvents/ResizingFrameTest.java duplicate in ProblemList", "priority": "P4", "type": "Bug", "component": "client-libs", "os": "", "description": "JDK-8337320 regression\njava/awt/Mouse/EnterExitEvents/ResizingFrameTest.java 8005021 macosx-all\njava/awt/Mouse/EnterExitEvents/ResizingFrameTest.java 8332158 linux-x64"}, {"id": "JDK-8338110", "title": "Exclude Fingerprinter::do_type from ubsan checks", "priority": "P4", "type": "Sub-task", "component": "hotspot", "os": "generic", "description": "For now we still have undefined behavior in Fingerprinter::do_type reorted by ubsan ;  exclude the method from ubsan checks until the signature handling code is adjusted ."}, {"id": "JDK-8338380", "title": "Update TLSCommon/interop/AbstractServer to specify an interface to listen for connections", "priority": "P4", "type": "Bug", "component": "security-libs", "os": "", "description": "test/jdk/javax/net/ssl/TLSCommon/interop/AbstractServer.java it can be useful to allow tests to specify a specific interface on which to listen for incoming connections.\nDefault should be the loopback..."}, {"id": "JDK-8338389", "title": "[JFR] Long strings should be added to the string pool", "priority": "P3", "type": "Bug", "component": "hotspot", "os": "", "description": "When committing JFR events with string data longer than 128 characters, the string isn't added to the JFR string pool.\nIn scenarios with many events containing large string values, this can lead to ve..."}, {"id": "JDK-8338402", "title": "GHA: some of bundles may not get removed", "priority": "P4", "type": "Bug", "component": "infrastructure", "os": "", "description": "Some of bundles may not get removed. This is follows JDK-8336928. Problem does not always show up, so I have not seen it in my test runs, but since then I have  seen some GHA runs affected by this.\nDe..."}, {"id": "JDK-8338449", "title": "ubsan: division by zero in sharedRuntimeTrans.cpp", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "When running with ubsan enabled binaries on Linux ppc64le, these  divisions by zero are detected.\ntest\njava/lang/Math/Log10Tests.java: Tests for {Math, StrictMath}.log10\n----------stderr:(4/324)------..."}, {"id": "JDK-8339384", "title": "Unintentional IOException in jdk.jdi module when JDWP end of stream occurs", "priority": "P5", "type": "Bug", "component": "hotspot", "os": "", "description": "The block of code in com.sun.tools.jdi.TargetVM has a logic error which leads to an IOException being raised every time the JDWP stream that it is parsing reaches the end of stream:\npublic void run() ..."}, {"id": "JDK-8339560", "title": "Unaddressed comments during code review of JDK-8337664", "priority": "P4", "type": "Bug", "component": "security-libs", "os": "", "description": "During the review, Rajan and Sean had several comments that I was unable to address because of time constraints. Nothing was urgent so it was decided to file a follow-on bug.\n1. test/jdk/sun/security/..."}, {"id": "JDK-8339591", "title": "Mark jdk/jshell/ExceptionMessageTest.java intermittent", "priority": "P4", "type": "Bug", "component": "infrastructure", "os": "generic", "description": "The test  jdk/jshell/ExceptionMessageTest.java has quite a few intermittent errors/timeouts etc. , so mark the test intermittent ."}, {"id": "JDK-8339741", "title": "RISC-V: C ABI breakage for integer on stack", "priority": "P3", "type": "Bug", "component": "hotspot", "os": "", "description": "When passing any integer shorter than XLEN(/64) on stack it must be enlarged and sign extended to XLEN(/64).\nThese are now passed as 32-bit.\nOnly reason why this is only P3 is because how gcc 'happens..."}, {"id": "JDK-8339803", "title": "Acknowledge case insensitive unambiguous keywords in tzdata files", "priority": "P4", "type": "Bug", "component": "core-libs", "os": "generic", "description": "TZDB spec allows not only month/weekday names, but the keywords themselves can be case-insensitive and unambiguous abbreviations."}, {"id": "JDK-8340007", "title": "Refactor KeyEvent/FunctionKeyTest.java", "priority": "P4", "type": "Bug", "component": "client-libs", "os": "", "description": "The java/awt/event/KeyEvent/FunctionKeyTest.java test can be improved:\nThe class FunctionKeyTester should be moved into FunctionKeyTest;\nThe constants in switch statement 403, 404 should be replaced w..."}, {"id": "JDK-8340008", "title": "KeyEvent/KeyTyped/Numpad1KeyTyped.java has 15 seconds timeout", "priority": "P4", "type": "Bug", "component": "client-libs", "os": "", "description": "The java/awt/event/KeyEvent/KeyTyped/Numpad1KeyTyped.java has a timeout of 15 seconds to wait for a key press to be processed. It is an overkill, 2 seconds is plenty enough."}, {"id": "JDK-8340365", "title": "Position the first window of a window list", "priority": "P4", "type": "Bug", "component": "client-libs", "os": "", "description": "Support of multiple test UI windows in PassFailJFrame is still evolving. After JDK-8340210, the Builder has a method `positionTestUI` to supply an implementation of PositionWindows interface which sho..."}, {"id": "JDK-8340383", "title": "VM issues warning failure to find kernel32.dll on Windows nanoserver", "priority": "P3", "type": "Bug", "component": "hotspot", "os": "windows", "description": "When trying to run jdk-23+37 on Windows nanoserver container, the VM\ninitilization throws up the warning:\nOpenJDK 64-Bit Server VM warning: Failed to determine whether the OS can retrieve version info..."}, {"id": "JDK-8340387", "title": "Update OS detection code to recognize Windows Server 2025", "priority": "P3", "type": "Bug", "component": "hotspot", "os": "windows", "description": "Windows Server 2025 will be released in a few months.\nThe OS detection code of the JVM/JDK should recognize the new Windows server 2025 version.\n(currently  Windows server 2022  is printed, that is wr..."}, {"id": "JDK-8340398", "title": "[JVMCI] Unintuitive behavior of UseJVMCICompiler option", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "generic", "description": "Disabling the JVMCI compiler with `-XX:-UseJVMCICompiler` not only deactivates JVMCI-based CompileBroker compilations but also prevents the loading of the libjvmci compiler. While this works as expect..."}, {"id": "JDK-8340466", "title": "Add description for PassFailJFrame constructors", "priority": "P4", "type": "Sub-task", "component": "client-libs", "os": "", "description": "Write missing descriptions for PassFailJFrame constructors.\nPerhaps, deprecate the constructors in favour of Builder?"}, {"id": "JDK-8340552", "title": "Harden TzdbZoneRulesCompiler against missing zone names", "priority": "P5", "type": "Bug", "component": "infrastructure", "os": "generic", "description": "If zone names are missing, negative results from the binarySearch() call are written to the output file. This results in an ArrayIndexOutOfBoundsException during loading."}, {"id": "JDK-8340657", "title": "[PPC64] SA determines wrong unextendedSP", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "adjustUnextendedSP() determines a wrong value for raw_unextendedSP. It uses the FP which basically pops the frame, so we end up in the wrong frame.\nThis causes errors like JDK-8339772."}, {"id": "JDK-8340785", "title": "Update description of PassFailJFrame and samples", "priority": "P4", "type": "Sub-task", "component": "client-libs", "os": "", "description": "Expand the description of PassFailJFrame, add sections, and update samples.\nProvide more detailed description of the PassFailJFrame features, reference Builder methods to configure the framework.\nThe ..."}, {"id": "JDK-8340801", "title": "Disable ubsan checks in some awt/2d coding", "priority": "P4", "type": "Bug", "component": "client-libs", "os": "generic", "description": "There is some old awt/2d coding where warnings occur when running with ubsan enabled binaries.\nHowever at most of these locations the coding should work (at least on our supported platform set) so the..."}, {"id": "JDK-8340899", "title": "Remove wildcard bound in PositionWindows.positionTestWindows", "priority": "P3", "type": "Bug", "component": "client-libs", "os": "", "description": "Currently, PassFailJFrame.PositionWindows.positionTestWindows declares its testWindows parameter with the type of List which was introduced in JDK-8294156 and later made available in JDK-8340210.\nInte..."}, {"id": "JDK-8340923", "title": "The class LogSelection copies uninitialized memory", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "The class LogSelection's custom constructor does not initialize the whole _tags array but is lacking a custom copy constructor and assignment operator. This means that any copy will technically copy u..."}, {"id": "JDK-8342063", "title": "[21u][aix] Backport introduced redundant line in ProblemList", "priority": "P4", "type": "Bug", "component": "core-libs", "os": "", "description": "Bakcport of  https://bugs.openjdk.org/browse/JDK-8316387: Exclude more failing multicast tests on AIX after JDK-8315651 introduced a second line for java/nio/channels/DatagramChannel/AfterDisconnect.j..."}, {"id": "JDK-8342181", "title": "Update tests to use stronger Key and Salt size", "priority": "P2", "type": "Sub-task", "component": "security-libs", "os": "", "description": "Some tests are identified to use weak key sizes and salt in the tests. If the test purpose is not to test with weak keys then these tests should be updated to use stronger key. If the key cannot be up..."}, {"id": "JDK-8342183", "title": "Update tests to use stronger algorithms and keys", "priority": "P2", "type": "Sub-task", "component": "security-libs", "os": "", "description": "Some tests are identified to use weak/legacy algorithms in the tests. If the test purpose is not to test with weak algorithms then these tests should be updated to use stronger algorithms. If the test..."}, {"id": "JDK-8342188", "title": "Update tests to use stronger key parameters and certificates", "priority": "P2", "type": "Sub-task", "component": "security-libs", "os": "", "description": "Some tests are identified to use weak key parameters in the tests (prime modulus, private/public values), tests:\nopen/test/jdk/com/sun/crypto/provider/Cipher/RSA/TestRSA.java\nopen/test/jdk/com/sun/cry..."}, {"id": "JDK-8342578", "title": "GHA: RISC-V: Bootstrap using Debian snapshot is still failing", "priority": "P4", "type": "Bug", "component": "infrastructure", "os": "", "description": "In JDK-8339548, we switched to use Debian snapshot (https://snapshot.debian.org/archive/debian/20240228T034848Z/) for bootstrap.\nThe reason is that we don't have a stable Debian release for RISC-V yet..."}, {"id": "JDK-8342669", "title": "[21u] Fix TestArrayAllocatorMallocLimit after backport of JDK-8315097", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "I had to extend the changes of 8315097 to this file that was removed in head before the original 8315097 was applied. I got one call wrong.\nSee also https://github.com/openjdk/jdk21u-dev/commit/1f38af..."}, {"id": "JDK-8315097", "title": "Rename createJavaProcessBuilder", "priority": "P4", "type": "Sub-task", "component": "hotspot", "os": "", "description": "Rename createJavaProcessBuilder so that it is not used by mistake instead of createTestJvm"}, {"id": "JDK-8342681", "title": "TestLoadBypassesNullCheck.java fails improperly specified VM option", "priority": "P3", "type": "Bug", "component": "hotspot", "os": "generic", "description": "Newly added test gc/shenandoah/compiler/TestLoadBypassesNullCheck.java fails, the test log snippet:\nError: VM option 'StressGCM' is diagnostic and must be enabled via -XX:+UnlockDiagnosticVMOptions.\nE..."}, {"id": "JDK-8342905", "title": "Thread.setContextClassloader from thread in FJP commonPool task no longer works after JDK-8327501 redux", "priority": "P4", "type": "Bug", "component": "core-libs", "os": "", "description": "See JDK-8328366 for more details."}, {"id": "JDK-8327501", "title": "Common ForkJoinPool prevents class unloading in some cases", "priority": "P4", "type": "Bug", "component": "core-libs", "os": "", "description": "When the ForkJoinPool.commonPool() creates new worker threads, they capture an AccessControlContext from the location where they were created, which means that the class won't get unloaded for the lif..."}, {"id": "JDK-8343474", "title": "[updates] Customize README.md to specifics of update project", "priority": "P4", "type": "Bug", "component": "infrastructure", "os": "", "description": "Add some project specific information to README.md, among others to better guide new contributors.\nLet’s keep this sufficiently generic so that the information holds for jdkXu and jdkXu-dev\nand that t..."}, {"id": "JDK-8343724", "title": "[PPC64] Disallow OptoScheduling", "priority": "P4", "type": "Bug", "component": "hotspot", "os": "", "description": "The JVM currently allows switching on -XX:+OptoScheduling.\nThis should not be allowed because the required information in ppc.ad file is neither accurate nor complete.\nJDK-8338446 shows that it implie..."}, {"id": "JDK-8344993", "title": "[21u] [REDO] Backport JDK-8327501 and JDK-8328366 to JDK 21", "priority": "P4", "type": "Bug", "component": "core-libs", "os": "generic", "description": "JDK-8327501 and JDK-8328366 got backported to OpenJDK 21.0.5 and backed out with JDK-8341989 in the same release 21.0.5. This is a redo bug for a new attempt to fix the class unloading issue described..."}, {"id": "JDK-8328366", "title": "Thread.setContextClassloader from thread in FJP commonPool task no longer works after JDK-8327501", "priority": "P3", "type": "Bug", "component": "core-libs", "os": "generic", "description": "Christian Wimmer in JDK-8327501 writes:\nThe fix for JDK-8327501 has a compatibility impact that has been overlooked: Using `InnocuousForkJoinWorkerThread` means that any task that runs in the common p..."}];
+        const priorityStats = {"P4": 50, "P3": 16, "P5": 7, "P2": 4};
+        const componentStats = {"security-libs": 15, "hotspot": 29, "core-libs": 10, "client-libs": 15, "tools": 2, "core-svc": 1, "infrastructure": 5};
+        const typeStats = {"Bug": 69, "Sub-task": 8};
+        const osStats = {"generic": 18, "unknown": 56, "windows_10": 1, "windows": 2};
+        
+        // グラフの色設定
+        const chartColors = [
+            '#667eea', '#764ba2', '#f093fb', '#4facfe',
+            '#43e97b', '#fa709a', '#fee140', '#30cfd0',
+            '#a8edea', '#fed6e3', '#c471f5', '#fa8231'
+        ];
+        
+        // 優先度チャート
+        new Chart(document.getElementById('priorityChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(priorityStats),
+                datasets: [{
+                    label: 'Issue数',
+                    data: Object.values(priorityStats),
+                    backgroundColor: chartColors[0],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { display: false } }
+            }
+        });
+        
+        // コンポーネントチャート (Top 10)
+        const topComponents = Object.entries(componentStats)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+        
+        new Chart(document.getElementById('componentChart'), {
+            type: 'doughnut',
+            data: {
+                labels: topComponents.map(c => c[0]),
+                datasets: [{
+                    data: topComponents.map(c => c[1]),
+                    backgroundColor: chartColors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+        
+        // タイプチャート
+        new Chart(document.getElementById('typeChart'), {
+            type: 'pie',
+            data: {
+                labels: Object.keys(typeStats),
+                datasets: [{
+                    data: Object.values(typeStats),
+                    backgroundColor: chartColors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+        
+        // OSチャート
+        new Chart(document.getElementById('osChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(osStats),
+                datasets: [{
+                    label: 'Issue数',
+                    data: Object.values(osStats),
+                    backgroundColor: chartColors[1],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { display: false } },
+                indexAxis: 'y'
+            }
+        });
+        
+        // テーブル機能
+        let currentSort = { column: 'priority', direction: 'asc' };
+        let filteredData = [...issuesData];
+        
+        function renderTable() {
+            const tbody = document.getElementById('issuesTableBody');
+            tbody.innerHTML = '';
+            
+            filteredData.forEach(issue => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${issue.id}</td>
+                    <td><span class="priority-badge priority-${issue.priority}">${issue.priority}</span></td>
+                    <td><span class="type-badge">${issue.type}</span></td>
+                    <td>${issue.component}</td>
+                    <td>${issue.title}</td>
+                    <td>${issue.os || '-'}</td>
+                `;
+            });
+        }
+        
+        function sortData(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            
+            filteredData.sort((a, b) => {
+                let aVal = a[column] || '';
+                let bVal = b[column] || '';
+                
+                if (column === 'priority') {
+                    const priorityOrder = { 'P1': 1, 'P2': 2, 'P3': 3, 'P4': 4, 'P5': 5 };
+                    aVal = priorityOrder[aVal] || 99;
+                    bVal = priorityOrder[bVal] || 99;
+                }
+                
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            // ソート状態を表示
+            document.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+            document.querySelector(`th[data-sort="${column}"]`)
+                .classList.add(`sort-${currentSort.direction}`);
+            
+            renderTable();
+        }
+        
+        function filterData() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const priorityFilter = document.getElementById('priorityFilter').value;
+            const typeFilter = document.getElementById('typeFilter').value;
+            const componentFilter = document.getElementById('componentFilter').value;
+            
+            filteredData = issuesData.filter(issue => {
+                const matchesSearch = !searchTerm || 
+                    issue.title.toLowerCase().includes(searchTerm) ||
+                    issue.id.toLowerCase().includes(searchTerm) ||
+                    issue.description.toLowerCase().includes(searchTerm);
+                const matchesPriority = !priorityFilter || issue.priority === priorityFilter;
+                const matchesType = !typeFilter || issue.type === typeFilter;
+                const matchesComponent = !componentFilter || issue.component === componentFilter;
+                
+                return matchesSearch && matchesPriority && matchesType && matchesComponent;
+            });
+            
+            renderTable();
+        }
+        
+        // イベントリスナー
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => sortData(th.dataset.sort));
+        });
+        
+        document.getElementById('searchInput').addEventListener('input', filterData);
+        document.getElementById('priorityFilter').addEventListener('change', filterData);
+        document.getElementById('typeFilter').addEventListener('change', filterData);
+        document.getElementById('componentFilter').addEventListener('change', filterData);
+        
+        // 初期表示
+        renderTable();
+    </script>
+</body>
+</html>
