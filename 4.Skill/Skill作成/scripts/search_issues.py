@@ -30,6 +30,10 @@ Issue検索用コマンドラインツール
 別のファイルを検索:
     python search_issues.py -p P2 -o windows -f "path/to/issues.txt"
 
+複数ファイルを同時に検索:
+    python search_issues.py -p P2 -f "file1.txt" "file2.txt" "file3.txt"
+    python search_issues.py --search "Windows" -f "jdk_21.0.6.txt" "jdk_21.0.7.txt"
+
 検索条件:
 --------
 以下のオプションを組み合わせて検索できます:
@@ -56,6 +60,10 @@ Issue検索用コマンドラインツール
 
 5. 別ファイルから検索:
    $ python search_issues.py -p P2 -f "jdk_OpenJDK 21.0.7 Released.txt_output.txt"
+
+6. 複数ファイルを同時に検索:
+   $ python search_issues.py -p P2 -f "jdk_21.0.6.txt" "jdk_21.0.7.txt" "jdk_21.0.8.txt"
+   $ python search_issues.py --search "security" -f "jdk_21.0.6.txt" "jdk_21.0.7.txt"
 
 出力形式:
 --------
@@ -131,13 +139,18 @@ def main():
 
   # 詳細表示付き
   python search_issues.py --priority P3 --type Bug --verbose
+
+  # 複数ファイルを同時に検索
+  python search_issues.py -p P2 -f "jdk_21.0.6.txt" "jdk_21.0.7.txt" "jdk_21.0.8.txt"
+  python search_issues.py --search "security" -f "jdk_21.0.6.txt" "jdk_21.0.7.txt"
         '''
     )
 
     parser.add_argument(
         '--file', '-f',
-        default='../1.INPUT作成/3.INPUT/jdk_OpenJDK 21.0.6 Released.txt_output.txt',
-        help='入力ファイルのパス（デフォルト: OpenJDK 21.0.6）'
+        nargs='+',
+        default=['../../../1.INPUT作成/3.INPUT/jdk_OpenJDK 21.0.6 Released.txt_output.txt'],
+        help='入力ファイルのパス（複数指定可能）（デフォルト: OpenJDK 21.0.6）'
     )
     parser.add_argument('--id', '-i', help='Issue ID (例: JDK-8320192, 8320192)')
     parser.add_argument('--search', '-s', help='キーワードで本文を検索 (例: "Windows 11", "platform")')
@@ -151,32 +164,53 @@ def main():
 
     args = parser.parse_args()
 
-    # 統計を読み込み
-    print(f"ファイルを読み込み中: {args.file}")
-    stats = load_and_analyze(args.file)
+    # 複数ファイルの処理
+    files = args.file if isinstance(args.file, list) else [args.file]
+    all_stats = []
+
+    # 各ファイルを読み込み
+    for file_path in files:
+        print(f"ファイルを読み込み中: {file_path}")
+        try:
+            stats = load_and_analyze(file_path)
+            all_stats.append((file_path, stats))
+        except Exception as e:
+            print(f"エラー: {file_path} の読み込みに失敗しました: {e}")
+            continue
+
+    if not all_stats:
+        print("エラー: 有効なファイルが読み込めませんでした")
+        return
 
     # ID検索モード
     if args.id:
-        print(f"\nIssue IDで検索: {args.id}")
-        issue = stats.find_by_id(args.id)
+        print(f"\nIssue IDで検索: {args.id}\n")
+        found = False
 
-        if issue:
-            print(f"\n見つかりました:\n")
-            print(f"Title: {issue.title}")
-            print(f"Priority: {issue.priority}")
-            print(f"Type: {issue.type}")
-            print(f"Component: {issue.component}")
-            print(f"OS: {issue.os if issue.os else '(未指定)'}")
+        for file_path, stats in all_stats:
+            issue = stats.find_by_id(args.id)
 
-            if args.verbose and issue.description:
-                print(f"\nDescription:")
-                # 最初の500文字まで表示
-                desc = issue.description[:500]
-                print(f"{desc}")
-                if len(issue.description) > 500:
-                    print(f"... (残り {len(issue.description) - 500} 文字)")
-        else:
-            print(f"\nIssue ID '{args.id}' は見つかりませんでした")
+            if issue:
+                found = True
+                print(f"[{file_path}]")
+                print(f"見つかりました:\n")
+                print(f"Title: {issue.title}")
+                print(f"Priority: {issue.priority}")
+                print(f"Type: {issue.type}")
+                print(f"Component: {issue.component}")
+                print(f"OS: {issue.os if issue.os else '(未指定)'}")
+
+                if args.verbose and issue.description:
+                    print(f"\nDescription:")
+                    # 最初の500文字まで表示
+                    desc = issue.description[:500]
+                    print(f"{desc}")
+                    if len(issue.description) > 500:
+                        print(f"... (残り {len(issue.description) - 500} 文字)")
+                print()
+
+        if not found:
+            print(f"Issue ID '{args.id}' は見つかりませんでした")
         return
 
     # キーワード検索モード
@@ -185,39 +219,51 @@ def main():
 
         if args.search_fields:
             print(f"検索対象フィールド: {', '.join(args.search_fields)}")
-            issues = stats.search_in_fields(args.search, fields=args.search_fields)
         else:
             print(f"検索対象フィールド: title, description, component")
-            issues = stats.search_in_fields(args.search)
 
-        print(f"\n結果: {len(issues)} 件\n")
+        total_issues = 0
 
-        if issues:
-            if args.verbose:
-                print("該当するissue:\n")
-                for i, issue in enumerate(issues, 1):
-                    print(f"{i}. {issue.title}")
-                    print(f"   ID: {issue.issue_id}")
-                    print(f"   Priority: {issue.priority}, Type: {issue.type}")
-                    print(f"   Component: {issue.component}")
-
-                    # キーワード周辺のテキストを表示
-                    if issue.description:
-                        keyword_lower = args.search.lower()
-                        desc_lower = issue.description.lower()
-                        idx = desc_lower.find(keyword_lower)
-                        if idx >= 0:
-                            start = max(0, idx - 60)
-                            end = min(len(issue.description), idx + len(args.search) + 80)
-                            snippet = issue.description[start:end].replace('\n', ' ')
-                            print(f"   Context: ...{snippet}...")
-                    print()
+        for file_path, stats in all_stats:
+            if args.search_fields:
+                issues = stats.search_in_fields(args.search, fields=args.search_fields)
             else:
-                print("該当するissue:")
-                for issue in issues:
-                    print(f"  - {issue.issue_id}: {issue.title}")
+                issues = stats.search_in_fields(args.search)
+
+            if issues:
+                print(f"\n[{file_path}]")
+                print(f"結果: {len(issues)} 件\n")
+                total_issues += len(issues)
+
+                if args.verbose:
+                    print("該当するissue:\n")
+                    for i, issue in enumerate(issues, 1):
+                        print(f"{i}. {issue.title}")
+                        print(f"   ID: {issue.issue_id}")
+                        print(f"   Priority: {issue.priority}, Type: {issue.type}")
+                        print(f"   Component: {issue.component}")
+
+                        # キーワード周辺のテキストを表示
+                        if issue.description:
+                            keyword_lower = args.search.lower()
+                            desc_lower = issue.description.lower()
+                            idx = desc_lower.find(keyword_lower)
+                            if idx >= 0:
+                                start = max(0, idx - 60)
+                                end = min(len(issue.description), idx + len(args.search) + 80)
+                                snippet = issue.description[start:end].replace('\n', ' ')
+                                print(f"   Context: ...{snippet}...")
+                        print()
+                else:
+                    print("該当するissue:")
+                    for issue in issues:
+                        print(f"  - {issue.issue_id}: {issue.title}")
+                    print()
+
+        if total_issues == 0:
+            print(f"\nキーワード \"{args.search}\" に一致するissueは見つかりませんでした")
         else:
-            print(f"キーワード \"{args.search}\" に一致するissueは見つかりませんでした")
+            print(f"\n=== 合計: {total_issues} 件 ===")
 
         return
 
@@ -237,28 +283,40 @@ def main():
         print("\n\nエラー: 最低1つの検索条件（--id、--search、または --priority/--type/--component/--os）を指定してください")
         return
 
-    # 検索実行
-    issues = stats.filter_issues(**filters)
-
     # 結果表示
     print(f"\n検索条件:")
     for key, value in filters.items():
         print(f"  {key}: {value}")
 
-    print(f"\n結果: {len(issues)} 件\n")
+    total_issues = 0
 
-    if args.verbose and issues:
-        print("該当するissue:")
-        for i, issue in enumerate(issues, 1):
-            print(f"\n{i}. {issue.title}")
-            print(f"   Priority: {issue.priority}")
-            print(f"   Type: {issue.type}")
-            print(f"   Component: {issue.component}")
-            print(f"   OS: {issue.os if issue.os else '(未指定)'}")
-    elif issues and not args.verbose:
-        print("該当するissue:")
-        for issue in issues:
-            print(f"  - {issue.title}")
+    for file_path, stats in all_stats:
+        # 検索実行
+        issues = stats.filter_issues(**filters)
+
+        if issues:
+            print(f"\n[{file_path}]")
+            print(f"結果: {len(issues)} 件\n")
+            total_issues += len(issues)
+
+            if args.verbose:
+                print("該当するissue:")
+                for i, issue in enumerate(issues, 1):
+                    print(f"\n{i}. {issue.title}")
+                    print(f"   Priority: {issue.priority}")
+                    print(f"   Type: {issue.type}")
+                    print(f"   Component: {issue.component}")
+                    print(f"   OS: {issue.os if issue.os else '(未指定)'}")
+            else:
+                print("該当するissue:")
+                for issue in issues:
+                    print(f"  - {issue.title}")
+            print()
+
+    if total_issues == 0:
+        print(f"\n指定された条件に一致するissueは見つかりませんでした")
+    else:
+        print(f"=== 合計: {total_issues} 件 ===")
 
 
 if __name__ == "__main__":
