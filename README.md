@@ -58,4 +58,5 @@ AI サービス上で以下の機能を提供します。
 
 作成例:  
 https://claude.ai/share/58ddc0cc-2b22-4de9-9475-0c11fdf48db3  
-https://claude.ai/share/9d4bf782-76c6-4ac5-bae9-7ccc42ba4c5e
+https://claude.ai/public/artifacts/3a99d00e-91bf-457e-bd84-46107c0e4753
+https://claude.ai/public/artifacts/b6e63b9e-817e-4545-99a8-e2eec10bcfb9
