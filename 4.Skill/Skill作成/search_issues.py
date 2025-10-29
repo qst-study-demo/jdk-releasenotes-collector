@@ -9,7 +9,11 @@ Issue検索用コマンドラインツール
 ----------
 - Priority、Type、Component、OSなどの条件で検索
 - 複数条件の組み合わせ（AND条件）
-- 検索結果の件数表示
+- 複数ファイルの同時検索
+- 検索結果の統計情報表示（--stats）
+- 検索結果のグループ化（--group-by）
+- 検索結果のソート（--sort）
+- 表示件数制限（--limit）
 - --verbose オプションで詳細情報の表示
 
 使い方:
@@ -41,8 +45,12 @@ Issue検索用コマンドラインツール
     --type, -t      : タイプ（Bug, Sub-taskなど）
     --component, -c : コンポーネント（hotspot, security-libsなど）
     --os, -o        : OS（windows, generic, linuxなど）
-    --file, -f      : 入力ファイルのパス
+    --file, -f      : 入力ファイルのパス（複数指定可能）
     --verbose, -v   : 詳細情報を表示
+    --stats         : 統計情報を表示
+    --group-by, -g  : 結果をグループ化（priority/type/component/os/file）
+    --sort          : 結果をソート（priority/type/component/os）
+    --limit, -l     : 表示件数を制限
 
 使用例:
 ------
@@ -64,6 +72,18 @@ Issue検索用コマンドラインツール
 6. 複数ファイルから検索:
    $ python search_issues.py -p P2 -f "file1.txt" "file2.txt" "file3.txt"
    $ python search_issues.py --search "Windows" -f jdk_*.txt
+
+7. 統計情報付きで検索:
+   $ python search_issues.py --os windows --stats
+
+8. 優先度別にグループ化:
+   $ python search_issues.py -p P3 -t Bug --group-by priority --verbose
+
+9. 優先度順にソートして上位10件を表示:
+   $ python search_issues.py --os windows --sort priority --limit 10
+
+10. コンポーネント別にグループ化して統計表示:
+    $ python search_issues.py -p P2 -p P3 --group-by component --stats
 
 出力形式:
 --------
@@ -96,6 +116,136 @@ Issue検索用コマンドラインツール
 
 import argparse
 from jdk_issue_statistics import load_and_analyze
+from collections import defaultdict
+
+
+def print_statistics(issues_with_files):
+    """
+    検索結果の統計情報を表示
+
+    Args:
+        issues_with_files: (file_path, issue)のタプルのリスト
+    """
+    if not issues_with_files:
+        return
+
+    print("\n" + "=" * 80)
+    print("📊 統計情報")
+    print("=" * 80)
+
+    # 優先度別統計
+    priority_stats = defaultdict(int)
+    for _, issue in issues_with_files:
+        priority = issue.priority or '未指定'
+        priority_stats[priority] += 1
+
+    print("\n優先度別:")
+    priority_order = ['P1', 'P2', 'P3', 'P4', 'P5', '未指定']
+    for priority in priority_order:
+        if priority in priority_stats:
+            count = priority_stats[priority]
+            print(f"  {priority}: {count} 件")
+
+    # タイプ別統計
+    type_stats = defaultdict(int)
+    for _, issue in issues_with_files:
+        issue_type = issue.type or '未指定'
+        type_stats[issue_type] += 1
+
+    print("\nタイプ別:")
+    for issue_type, count in sorted(type_stats.items(), key=lambda x: x[1], reverse=True):
+        print(f"  {issue_type}: {count} 件")
+
+    # コンポーネント別統計（上位10件）
+    component_stats = defaultdict(int)
+    for _, issue in issues_with_files:
+        component = issue.component or '未指定'
+        component_stats[component] += 1
+
+    print("\nコンポーネント別 (上位10件):")
+    for component, count in sorted(component_stats.items(), key=lambda x: x[1], reverse=True)[:10]:
+        print(f"  {component}: {count} 件")
+
+    # OS別統計
+    os_stats = defaultdict(int)
+    for _, issue in issues_with_files:
+        os = issue.os or '未指定'
+        os_stats[os] += 1
+
+    print("\nOS別:")
+    for os, count in sorted(os_stats.items(), key=lambda x: x[1], reverse=True):
+        print(f"  {os}: {count} 件")
+
+    # ファイル別統計
+    file_stats = defaultdict(int)
+    for file_path, _ in issues_with_files:
+        file_stats[file_path] += 1
+
+    print("\nファイル別:")
+    for file_path, count in sorted(file_stats.items(), key=lambda x: x[1], reverse=True):
+        import os
+        filename = os.path.basename(file_path)
+        print(f"  {filename}: {count} 件")
+
+    print("=" * 80)
+
+
+def group_issues(issues_with_files, group_by):
+    """
+    検索結果をグループ化
+
+    Args:
+        issues_with_files: (file_path, issue)のタプルのリスト
+        group_by: グループ化のキー ('priority', 'type', 'component', 'os', 'file')
+
+    Returns:
+        グループ化された辞書 {key: [(file_path, issue), ...]}
+    """
+    groups = defaultdict(list)
+
+    for file_path, issue in issues_with_files:
+        if group_by == 'priority':
+            key = issue.priority or '未指定'
+        elif group_by == 'type':
+            key = issue.type or '未指定'
+        elif group_by == 'component':
+            key = issue.component or '未指定'
+        elif group_by == 'os':
+            key = issue.os or '未指定'
+        elif group_by == 'file':
+            import os
+            key = os.path.basename(file_path)
+        else:
+            key = '未分類'
+
+        groups[key].append((file_path, issue))
+
+    return groups
+
+
+def sort_issues(issues_with_files, sort_by):
+    """
+    検索結果をソート
+
+    Args:
+        issues_with_files: (file_path, issue)のタプルのリスト
+        sort_by: ソートのキー ('priority', 'type', 'component', 'os')
+
+    Returns:
+        ソートされたリスト
+    """
+    if sort_by == 'priority':
+        priority_order = {'P1': 1, 'P2': 2, 'P3': 3, 'P4': 4, 'P5': 5}
+        return sorted(issues_with_files,
+                     key=lambda x: priority_order.get(x[1].priority, 999))
+    elif sort_by == 'type':
+        return sorted(issues_with_files, key=lambda x: x[1].type or '未指定')
+    elif sort_by == 'component':
+        return sorted(issues_with_files, key=lambda x: x[1].component or '未指定')
+    elif sort_by == 'os':
+        return sorted(issues_with_files, key=lambda x: x[1].os or '未指定')
+    else:
+        return issues_with_files
 
 
 def main():
@@ -143,6 +293,18 @@ def main():
   # 複数ファイルから検索
   python search_issues.py -p P2 -f "file1.txt" "file2.txt" "file3.txt"
   python search_issues.py --search "Windows" -f jdk_*.txt
+
+  # 統計情報付きで検索
+  python search_issues.py --os windows --stats
+
+  # 優先度別にグループ化
+  python search_issues.py -t Bug --group-by priority --verbose
+
+  # 優先度順にソートして上位10件
+  python search_issues.py --os windows --sort priority --limit 10
+
+  # コンポーネント別にグループ化して統計表示
+  python search_issues.py -p P3 --group-by component --stats
         '''
     )
 
@@ -161,6 +323,14 @@ def main():
     parser.add_argument('--component', '-c', help='Component (例: hotspot, security-libs)')
     parser.add_argument('--os', '-o', help='OS (例: windows, generic, linux)')
     parser.add_argument('--verbose', '-v', action='store_true', help='詳細情報を表示')
+    parser.add_argument('--stats', action='store_true', help='検索結果の統計情報を表示')
+    parser.add_argument('--group-by', '-g',
+                       choices=['priority', 'type', 'component', 'os', 'file'],
+                       help='結果をグループ化 (priority/type/component/os/file)')
+    parser.add_argument('--sort',
+                       choices=['priority', 'type', 'component', 'os'],
+                       help='結果をソート (priority/type/component/os)')
+    parser.add_argument('--limit', '-l', type=int, help='表示件数を制限')
 
     args = parser.parse_args()
 
@@ -237,30 +407,83 @@ def main():
         print(f"\n結果: {len(all_issues)} 件\n")
 
         if all_issues:
-            if args.verbose:
-                print("該当するissue:\n")
-                for i, (file_path, issue) in enumerate(all_issues, 1):
-                    print(f"{i}. {issue.title}")
-                    print(f"   ファイル: {file_path}")
-                    print(f"   ID: {issue.issue_id}")
-                    print(f"   Priority: {issue.priority}, Type: {issue.type}")
-                    print(f"   Component: {issue.component}")
+            # 統計表示
+            if args.stats:
+                print_statistics(all_issues)
+                print()
 
-                    # キーワード周辺のテキストを表示
-                    if issue.description:
-                        keyword_lower = args.search.lower()
-                        desc_lower = issue.description.lower()
-                        idx = desc_lower.find(keyword_lower)
-                        if idx >= 0:
-                            start = max(0, idx - 60)
-                            end = min(len(issue.description), idx + len(args.search) + 80)
-                            snippet = issue.description[start:end].replace('\n', ' ')
-                            print(f"   Context: ...{snippet}...")
-                    print()
+            # ソート
+            if args.sort:
+                all_issues = sort_issues(all_issues, args.sort)
+
+            # 表示件数制限
+            display_issues = all_issues[:args.limit] if args.limit else all_issues
+            if args.limit and len(all_issues) > args.limit:
+                print(f"(最初の{args.limit}件を表示)\n")
+
+            # グループ化表示
+            if args.group_by:
+                groups = group_issues(display_issues, args.group_by)
+                # グループをソート
+                if args.group_by == 'priority':
+                    priority_order = ['P1', 'P2', 'P3', 'P4', 'P5', '未指定']
+                    sorted_groups = sorted(groups.items(),
+                                         key=lambda x: priority_order.index(x[0]) if x[0] in priority_order else 999)
+                else:
+                    sorted_groups = sorted(groups.items(), key=lambda x: len(x[1]), reverse=True)
+
+                for group_key, group_issues in sorted_groups:
+                    print(f"\n{'=' * 80}")
+                    print(f"{args.group_by.upper()}: {group_key} ({len(group_issues)} 件)")
+                    print('=' * 80)
+
+                    if args.verbose:
+                        for i, (file_path, issue) in enumerate(group_issues, 1):
+                            print(f"\n{i}. {issue.title}")
+                            print(f"   ファイル: {file_path}")
+                            print(f"   ID: {issue.issue_id}")
+                            print(f"   Priority: {issue.priority}, Type: {issue.type}")
+                            print(f"   Component: {issue.component}")
+
+                            # キーワード周辺のテキストを表示
+                            if issue.description:
+                                keyword_lower = args.search.lower()
+                                desc_lower = issue.description.lower()
+                                idx = desc_lower.find(keyword_lower)
+                                if idx >= 0:
+                                    start = max(0, idx - 60)
+                                    end = min(len(issue.description), idx + len(args.search) + 80)
+                                    snippet = issue.description[start:end].replace('\n', ' ')
+                                    print(f"   Context: ...{snippet}...")
+                    else:
+                        for file_path, issue in group_issues:
+                            print(f"  - {issue.issue_id}: {issue.title}")
             else:
-                print("該当するissue:")
-                for file_path, issue in all_issues:
-                    print(f"  - {issue.issue_id}: {issue.title} (from {file_path})")
+                # 通常表示
+                if args.verbose:
+                    print("該当するissue:\n")
+                    for i, (file_path, issue) in enumerate(display_issues, 1):
+                        print(f"{i}. {issue.title}")
+                        print(f"   ファイル: {file_path}")
+                        print(f"   ID: {issue.issue_id}")
+                        print(f"   Priority: {issue.priority}, Type: {issue.type}")
+                        print(f"   Component: {issue.component}")
+
+                        # キーワード周辺のテキストを表示
+                        if issue.description:
+                            keyword_lower = args.search.lower()
+                            desc_lower = issue.description.lower()
+                            idx = desc_lower.find(keyword_lower)
+                            if idx >= 0:
+                                start = max(0, idx - 60)
+                                end = min(len(issue.description), idx + len(args.search) + 80)
+                                snippet = issue.description[start:end].replace('\n', ' ')
+                                print(f"   Context: ...{snippet}...")
+                        print()
+                else:
+                    print("該当するissue:")
+                    for file_path, issue in display_issues:
+                        print(f"  - {issue.issue_id}: {issue.title} (from {file_path})")
         else:
             print(f"キーワード \"{args.search}\" に一致するissueは見つかりませんでした")
 
@@ -297,19 +520,77 @@ def main():
 
     print(f"\n結果: {len(all_issues)} 件\n")
 
-    if args.verbose and all_issues:
-        print("該当するissue:")
-        for i, (file_path, issue) in enumerate(all_issues, 1):
-            print(f"\n{i}. {issue.title}")
-            print(f"   ファイル: {file_path}")
-            print(f"   Priority: {issue.priority}")
-            print(f"   Type: {issue.type}")
-            print(f"   Component: {issue.component}")
-            print(f"   OS: {issue.os if issue.os else '(未指定)'}")
-    elif all_issues and not args.verbose:
-        print("該当するissue:")
-        for file_path, issue in all_issues:
-            print(f"  - {issue.title} (from {file_path})")
+    if all_issues:
+        # 統計表示
+        if args.stats:
+            print_statistics(all_issues)
+            print()
+
+        # ソート
+        if args.sort:
+            all_issues = sort_issues(all_issues, args.sort)
+
+        # 表示件数制限
+        display_issues = all_issues[:args.limit] if args.limit else all_issues
+        if args.limit and len(all_issues) > args.limit:
+            print(f"(最初の{args.limit}件を表示)\n")
+
+        # グループ化表示
+        if args.group_by:
+            groups = group_issues(display_issues, args.group_by)
+            # グループをソート
+            if args.group_by == 'priority':
+                priority_order = ['P1', 'P2', 'P3', 'P4', 'P5', '未指定']
+                sorted_groups = sorted(groups.items(),
+                                     key=lambda x: priority_order.index(x[0]) if x[0] in priority_order else 999)
+            else:
+                sorted_groups = sorted(groups.items(), key=lambda x: len(x[1]), reverse=True)
+
+            for group_key, group_issues in sorted_groups:
+                print(f"\n{'=' * 80}")
+                print(f"{args.group_by.upper()}: {group_key} ({len(group_issues)} 件)")
+                print('=' * 80)
+
+                if args.verbose:
+                    for i, (file_path, issue) in enumerate(group_issues, 1):
+                        print(f"\n{i}. {issue.title}")
+                        print(f"   ファイル: {file_path}")
+                        print(f"   Priority: {issue.priority}")
+                        print(f"   Type: {issue.type}")
+                        print(f"   Component: {issue.component}")
+                        print(f"   OS: {issue.os if issue.os else '(未指定)'}")
+
+                        # 説明の一部を表示
+                        if issue.description:
+                            desc = issue.description.replace('\n', ' ').strip()
+                            if len(desc) > 200:
+                                desc = desc[:200] + '...'
+                            print(f"   説明: {desc}")
+                else:
+                    for file_path, issue in group_issues:
+                        print(f"  - {issue.title}")
+        else:
+            # 通常表示
+            if args.verbose:
+                print("該当するissue:")
+                for i, (file_path, issue) in enumerate(display_issues, 1):
+                    print(f"\n{i}. {issue.title}")
+                    print(f"   ファイル: {file_path}")
+                    print(f"   Priority: {issue.priority}")
+                    print(f"   Type: {issue.type}")
+                    print(f"   Component: {issue.component}")
+                    print(f"   OS: {issue.os if issue.os else '(未指定)'}")
+
+                    # 説明の一部を表示
+                    if issue.description:
+                        desc = issue.description.replace('\n', ' ').strip()
+                        if len(desc) > 200:
+                            desc = desc[:200] + '...'
+                        print(f"   説明: {desc}")
+            else:
+                print("該当するissue:")
+                for file_path, issue in display_issues:
+                    print(f"  - {issue.title} (from {file_path})")
 
 
 if __name__ == "__main__":
