@@ -64,7 +64,7 @@ https://claude.ai/share/e4bbc0ca-53ba-486e-baf6-be03461f98ab  ※生成したレ
 https://claude.ai/public/artifacts/ff24ebd5-9b87-46c8-bfc8-4e4392d58535  
 
 Windows11に影響のあるIssueだけを対象に分析レポートを作成  
-https://claude.ai/public/artifacts/06547234-6521-4e86-829d-549a0918ab22  
+https://claude.ai/public/artifacts/35b54e4c-117c-43ea-9bd8-c50c8c7a0cac  
 
 まともに見るにはログイン必要  
 https://claude.ai/chat/480c6dd7-57b3-4ce0-991b-40a296a56471  
