@@ -1,11 +1,19 @@
 ---
 name: jdk-issue-analyzer
-description: Analyze JDK issues between versions to identify changes that impact existing application functionality. Use when users request analysis of JDK upgrade impacts, need to filter bug fixes and changes that affect their Windows 11 applications, or want a report on breaking changes between JDK versions.
+description: Analyze JDK issues between versions to identify changes that impact application functionality. Use for JDK upgrade impact analysis, filtering bug fixes affecting Windows 11 applications, or generating reports on breaking changes.
 ---
 
 # JDK Issue Analyzer
 
 JDKバージョン間のIssue(バグ修正、機能追加、変更など)を分析し、アプリケーションへの影響を評価するスキルです。特にWindows 11環境でのJDKバージョンアップ時の影響調査に有用です。
+
+**主な機能:**
+- 複数バージョンの同時検索・比較
+- Issue統計情報の可視化
+- 優先度・タイプ・コンポーネント別のグループ化
+- バージョン横断的な統合分析
+- キーワード・フィルタ検索
+- HTMLレポート生成
 
 ## Core Workflow
 
@@ -62,8 +70,37 @@ python3 generate_report.py 21.0.6 21.0.7 21.0.8
 4. 「セキュリティ関連Issueの詳細分析を追加しますか?」
 5. 「特定キーワード(例: performance、deprecation、API)での検索分析を追加しますか?」
 6. 「バージョン間の比較グラフを追加しますか?」
+7. 「複数バージョンのIssueを統合して優先度別にグループ化した分析を追加しますか?」
+8. 「各バージョンの統計情報を比較した分析を追加しますか?」
 
-ユーザーが追加分析を希望する場合は、`search_issues.py`を使用して詳細データを取得し、レポートを更新します。
+ユーザーが追加分析を希望する場合は、`search_issues.py`の新機能を活用します:
+
+**統計情報を使った分析:**
+```bash
+# 条件に合致するIssueの統計サマリー
+python3 search_issues.py --os windows --stats
+python3 search_issues.py --priority P2 --stats --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt
+```
+
+**グループ化を使った詳細分析:**
+```bash
+# Windows関連Issueをコンポーネント別にグループ化
+python3 search_issues.py --search "Windows" --group-by component --verbose
+
+# 高優先度Issueをタイプ別にグループ化
+python3 search_issues.py --priority P2 --group-by type --verbose
+```
+
+**複数バージョンの統合分析:**
+```bash
+# 全バージョンを統合してセキュリティIssueを優先度別に分析
+python3 search_issues.py --search "security" --merge --group-by priority --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt \
+  ../references/jdk_OpenJDK21_0_8_Released.txt
+```
 
 ## Issue検索機能
 
@@ -116,6 +153,78 @@ python3 search_issues.py --priority P3 --type Bug --verbose
 python3 search_issues.py --priority P2 --os windows --file ../references/jdk_OpenJDK21_0_7_Released.txt
 ```
 
+### 複数ファイルの検索
+
+複数のJDKバージョンのIssueを同時に検索:
+
+```bash
+# 複数ファイルを指定（ファイル別に結果表示）
+python3 search_issues.py --priority P2 --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt \
+  ../references/jdk_OpenJDK21_0_8_Released.txt
+
+# Windows関連のIssueを複数バージョンで検索
+python3 search_issues.py --search "Windows" --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt
+```
+
+### 統合検索（マージモード）
+
+複数ファイルを統合して1つのデータセットとして扱う:
+
+```bash
+# 全バージョンを統合してP2のIssueを検索
+python3 search_issues.py --priority P2 --merge --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt \
+  ../references/jdk_OpenJDK21_0_8_Released.txt
+```
+
+### 統計情報の表示
+
+検索条件に合致するIssueの統計情報を表示:
+
+```bash
+# Windows関連Issueの統計
+python3 search_issues.py --os windows --stats
+
+# P2 Issueの統計を複数バージョンで表示
+python3 search_issues.py --priority P2 --stats --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt
+```
+
+統計情報には以下が含まれます:
+- 総Issue数
+- 優先度別統計
+- タイプ別統計
+- コンポーネント別統計（上位10件）
+- OS別統計
+
+### グループ化表示
+
+検索結果を特定の属性でグループ化:
+
+```bash
+# 優先度別にグループ化
+python3 search_issues.py --priority P2 --group-by priority --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt
+
+# Windows関連Issueをコンポーネント別にグループ化
+python3 search_issues.py --search "Windows" --group-by component
+
+# セキュリティ関連Issueをタイプ別にグループ化（詳細表示付き）
+python3 search_issues.py --search "security" --group-by type --verbose
+```
+
+グループ化オプション:
+- `priority`: 優先度別（P1 → P2 → P3...の順）
+- `type`: タイプ別（Bug, Sub-taskなど）
+- `component`: コンポーネント別（件数の多い順）
+
 ## Use Cases
 
 ### Windows 11アプリケーションへの影響調査
@@ -127,6 +236,15 @@ python3 search_issues.py --os windows --verbose
 
 # Windows関連の高優先度Issue
 python3 search_issues.py --os windows --priority P2
+
+# 複数バージョンでWindows関連Issueをコンポーネント別に分析
+python3 search_issues.py --search "Windows" --merge --group-by component --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt \
+  ../references/jdk_OpenJDK21_0_8_Released.txt
+
+# Windows関連Issueの統計情報
+python3 search_issues.py --os windows --stats
 ```
 
 ### セキュリティ関連の変更確認
@@ -137,6 +255,14 @@ python3 search_issues.py --component security-libs
 
 # セキュリティキーワードで検索
 python3 search_issues.py --search "security" --verbose
+
+# 複数バージョンでセキュリティ関連Issueを優先度別に分析
+python3 search_issues.py --search "security" --merge --group-by priority --verbose --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt
+
+# セキュリティ関連Issueの統計情報
+python3 search_issues.py --component security-libs --stats
 ```
 
 ### パフォーマンス改善の確認
@@ -147,6 +273,33 @@ python3 search_issues.py --component hotspot
 
 # パフォーマンスキーワードで検索
 python3 search_issues.py --search "performance" --verbose
+
+# 複数バージョンでhotspot関連の統計情報を取得
+python3 search_issues.py --component hotspot --stats --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt
+```
+
+### バージョン横断的な分析
+
+```bash
+# 全バージョンでP2のBugを優先度別にグループ化
+python3 search_issues.py --priority P2 --type Bug --merge --group-by priority --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt \
+  ../references/jdk_OpenJDK21_0_8_Released.txt
+
+# 特定キーワードの出現傾向を各バージョンで比較
+python3 search_issues.py --search "deprecat" --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt \
+  ../references/jdk_OpenJDK21_0_8_Released.txt
+
+# 各バージョンの統計を比較
+python3 search_issues.py --priority P2 --stats --file \
+  ../references/jdk_OpenJDK21_0_6_Released.txt \
+  ../references/jdk_OpenJDK21_0_7_Released.txt \
+  ../references/jdk_OpenJDK21_0_8_Released.txt
 ```
 
 ## プログラマティックな使用
@@ -181,3 +334,17 @@ windows_issues = stats.filter_issues(os='windows')
 - 生成したレポートは必ず`/mnt/user-data/outputs/`にコピーしてください
 - 追加分析の提案は、生成したレポートの内容とユーザーの目的に応じて選択してください
 - ユーザーが特定のIssueについて詳しく知りたい場合は、`search_issues.py --id`を使用してください
+
+### 新機能の活用
+
+- **複数ファイル検索**: バージョン間の変化を比較する際は、複数ファイルを指定して各バージョンの結果を並べて表示
+- **統合モード (`--merge`)**: 全バージョンのIssueを統合して傾向を分析する際に使用
+- **統計モード (`--stats`)**: Issue数や分布を素早く把握する際に使用
+- **グループ化 (`--group-by`)**: 同じ属性のIssueをまとめて確認する際に使用（特にコンポーネント別での影響範囲確認に有効）
+
+### 効果的な使い方
+
+1. **初期調査**: `--stats`で全体像を把握
+2. **詳細分析**: `--group-by`で関心領域を深掘り
+3. **横断比較**: `--merge`で複数バージョンの統合的な傾向を確認
+4. **特定調査**: 条件を絞り込んで`--verbose`で詳細を確認
