@@ -319,3 +319,5 @@ if __name__ == "__main__":
     except Exception as exc:  # Safety net
         print(f"Unexpected error: {exc}", file=sys.stderr)
         sys.exit(1)
+
+# python jdk_issue_formatter.py jdk.txt
